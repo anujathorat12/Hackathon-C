@@ -1,7 +1,26 @@
-# AGENT-101 Module C — Document Compilers
+# AGENT-101 — Unified Requirements (A + B + C)
+
+# Module C — Document Compilers
 python-docx>=1.1.0
 python-pptx>=0.6.23
 xhtml2pdf>=0.2.15
-pydantic>=2.0.0
-pymongo>=4.6.0
 lxml>=5.0.0
+
+# Module B — Cognitive Pipeline & LLM
+groq>=0.4.0
+openai>=1.12.0
+chromadb>=0.4.22
+rich>=13.7.0
+
+# Module A — API Gateway
+fastapi>=0.110.0
+uvicorn>=0.27.0
+motor>=3.3.0
+websockets>=12.0
+python-multipart>=0.0.9
+
+# Shared
+pydantic>=2.5.0
+pymongo>=4.6.0
+python-dotenv>=1.0.0
+pytest>=8.0.0

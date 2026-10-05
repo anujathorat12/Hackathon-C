@@ -1,0 +1,21 @@
+{
+  "template_type": "DOCX",
+  "color_palette": {
+    "primary_hex": "#1B365D",
+    "secondary_hex": "#4B6B94",
+    "accent_hex": "#00A3E0",
+    "background_hex": "#FFFFFF",
+    "text_hex": "#222222"
+  },
+  "typography": {
+    "heading_font": "Calibri",
+    "body_font": "Calibri",
+    "heading_sizes": { "h1": 20, "h2": 15, "h3": 12, "body": 11 }
+  },
+  "layout_rules": {
+    "slide_layouts_available": [],
+    "max_bullets_per_slide": 5,
+    "table_header_shading_hex": "#1B365D",
+    "callout_box_style": "left_accent_border"
+  }
+}

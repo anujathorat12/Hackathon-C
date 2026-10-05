@@ -28,6 +28,7 @@ AI_Hackathon/
 *.docx
 *.md
 !README.md
+!backend/app/shared/fixtures/*.md
 
 # Output artifacts
 storage/outputs/*.docx
@@ -37,3 +38,14 @@ storage/outputs/*.pdf
 # Environment variables
 .env
 .env.local
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# Runtime storage (uploaded templates, per-topic deliverables)
+storage/templates/
+storage/outputs/*/
+
+# Temporary clone of the A+B repository
+_temp_ab/

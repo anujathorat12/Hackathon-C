@@ -1,70 +1,85 @@
-# AGENT-101 — Module C: Document Compilers & Accessibility Engine
+# AGENT-101 — Agentic Content Studio
 
 > **Multi-Agent Content Generation System — Hackathon Project**
+> Modules A + B + C integrated: from a one-line brief to a native, brand-styled, WCAG 2.2 AA–audited PPTX / DOCX / PDF / Markdown deliverable.
 
-## 🏗️ Architecture
+## 🔄 End-to-end flow
 
-Module C provides the **Document Compilation Pipeline** — responsible for analyzing reference templates, generating multi-format deliverables (DOCX, PPTX, PDF, Markdown), and enforcing WCAG 2.2 AA accessibility compliance.
+```
+ ┌──────────── Module A ────────────┐   ┌──────────────── Module B ─────────────────┐   ┌──────── Module C ────────┐
+  React Studio  ──REST──▶  FastAPI     ──▶  1 Requirement Analysis                       
+  (workspaces,             gateway          2 Planning                                    
+   template upload)          │              3 Reference Analysis  ◀── Module C agent ───  parsers/ (docx·pptx·pdf)
+        ▲                    │              4 Research & Enrichment                       
+        │   WebSocket  ◀─────┘ live events  5 Content Generation                          
+        │   telemetry                       6 Content Review  ──▶ WAITING_FOR_REVIEW      
+        │                                                                                 
+   Human review (preview / edit markdown) ──POST /approve──▶  7 Format Generation ──▶ converters/ + WCAG audit
+        ▲                                                                                       │
+        └──────────────────────────── GET /export (per-topic deliverable) ◀─────────────────────┘
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/v1/workspaces` · `GET` · `DELETE /{id}` | Topic workspaces (isolated context per topic) |
+| `POST /api/v1/workspaces/{id}/templates` | Upload a reference template → Module C extracts palette, fonts, layout |
+| `WS /api/v1/workspaces/{id}/stream` | Runs agents 1–6, streams `RUNNING` / `COMPLETED` / `WAITING_FOR_REVIEW` events |
+| `GET /api/v1/workspaces/{id}/run` | Snapshot of a run (events, refined content, deliverables) |
+| `POST /api/v1/workspaces/{id}/approve` | Human approval (optionally with edited markdown) → Agent 7 compiles |
+| `GET /api/v1/workspaces/{id}/export?file=` | Download this topic's deliverable |
+| `GET /api/health` | API status, LLM mode, storage mode |
+
+## 🚀 Run the demo
+
+```bash
+# 1. Backend deps (once)
+python -m venv venv
+venv\Scripts\activate                 # Windows
+pip install -r requirements.txt
+
+# 2. Frontend build (once, or after UI changes)
+cd frontend
+npm install
+npm run build
+cd ..
+
+# 3. Start everything on one port
+cd backend
+uvicorn app.main:app --port 8000
+```
+
+Open **http://localhost:8000**. FastAPI serves the built UI, the REST API and the WebSocket.
+
+**UI development with hot reload:** keep the backend running, then `cd frontend && npm run dev` and open http://localhost:5173 (`/api` is proxied to :8000).
+
+### Configuration (`backend/.env`, see `.env.example`)
+
+| Variable | Effect |
+|---|---|
+| `GROQ_API_KEY` | Enables live LLM generation. **Without it, agents use the deterministic offline fallback, so every topic produces the same sample content.** Set it for a topic-specific demo. |
+| `MONGODB_URI` | Persists workspaces. If MongoDB is unreachable, the API automatically uses an in-memory store (the header shows which). |
+
+## 🧪 Tests
+
+```bash
+python -m pytest tests -q                  # Module B unit tests + A→B→C API integration tests (all 4 formats)
+python tests/test_document_compilers.py    # Module C standalone compiler harness
+```
+
+## 📁 Layout
 
 ```
 backend/app/
-├── agents/document/        # Agent orchestration layer
-│   ├── reference_agent.py  # Agent 3 — Reference Template Analyzer
-│   ├── format_agent.py     # Agent 7 — Multi-Format Compiler
-│   └── wcag_validator.py   # WCAG 2.2 AA Accessibility Auditor
-├── parsers/                # Template inspection engines
-│   ├── docx_parser.py      # DOCX structure extractor
-│   ├── pptx_parser.py      # PPTX layout analyzer
-│   ├── pdf_parser.py       # PDF metadata parser
-│   └── template_normalizer.py  # Unified schema normalizer
-├── converters/             # Native format builders
-│   ├── docx/               # Enterprise DOCX generator
-│   │   ├── docx_builder.py
-│   │   ├── document_control.py
-│   │   └── table_styler.py
-│   ├── pptx/               # Widescreen PPTX with dark theme
-│   │   ├── pptx_builder.py
-│   │   └── theme_styler.py
-│   └── pdf_md/             # PDF & Markdown renderers
-│       ├── pdf_builder.py
-│       └── md_builder.py
-└── shared/schemas/
-    └── template_models.py  # Pydantic data contracts
-```
-
-## ✨ Key Features
-
-- **Reference Template Analysis** — Extracts styles, hierarchies, and metadata from DOCX/PPTX/PDF templates
-- **Multi-Format Generation** — Produces native PPTX (16:9, dark theme, KPI cards), DOCX (document control pages, accessible tables), PDF, and Markdown
-- **WCAG 2.2 AA Compliance** — Automated auditing for color contrast (≥4.5:1), heading order, and screen-reader accessibility (`w:tblHeader` tagging)
-- **Enterprise Styling** — Custom dark themes, gradient KPI stat cards, branded color palettes
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Language | Python 3.11+ |
-| Schemas | Pydantic v2 |
-| DOCX | python-docx + lxml |
-| PPTX | python-pptx |
-| PDF | xhtml2pdf |
-| Database | MongoDB Atlas (shared) |
-
-## 🚀 Setup
-
-```bash
-# Create virtual environment
-python -m venv venv
-venv\Scripts\activate    # Windows
-
-# Install dependencies
-pip install python-docx python-pptx xhtml2pdf pydantic pymongo lxml
-```
-
-## 🧪 Testing
-
-```bash
-python -m pytest tests/test_document_compilers.py -v
+├── main.py                      # FastAPI app, serves frontend/dist
+├── api/workspaces.py            # Module A gateway: workspaces, upload, stream, approve, export
+├── orchestration/               # Module B: pipeline graph + async runner
+├── agents/cognitive/            # Module B: agents 1, 2, 4, 5, 6
+├── agents/document/             # Module C: agent 3 (reference), agent 7 (format), WCAG validator
+├── parsers/ · converters/       # Module C: template inspection + native DOCX/PPTX/PDF/MD builders
+├── services/                    # LLM (Groq/OpenAI-compatible) + topic-scoped vector store
+└── shared/schemas/              # Pydantic contracts
+frontend/src/                    # Module A: React studio (Vite)
+tests/                           # Unit + integration tests
 ```
 
 ## 👥 Team
@@ -72,8 +87,8 @@ python -m pytest tests/test_document_compilers.py -v
 | Member | Module | Responsibility |
 |--------|--------|---------------|
 | Siddharth (A) | UI & API Gateway | Frontend + FastAPI routing |
-| Diya (B) | Agent Orchestration | LangGraph multi-agent pipeline |
-| Anuja (C) | Document Compilers | This module — format generation & accessibility |
+| Diya (B) | Agent Orchestration | Multi-agent cognitive pipeline |
+| Anuja (C) | Document Compilers | Template analysis, format generation & accessibility |
 
 ---
 *Built for AGENT-101 Hackathon*
