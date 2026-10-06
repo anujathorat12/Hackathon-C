@@ -1,5 +1,7 @@
+import traceback
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
@@ -27,6 +29,12 @@ async def startup_db_client():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     await close_mongo_connection()
+
+@app.exception_handler(Exception)
+async def unhandled_error(request: Request, exc: Exception):
+    # Return the real cause as JSON so the UI can show it instead of a bare "Internal Server Error".
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"detail": f"Server error — {type(exc).__name__}: {exc}"})
 
 app.include_router(workspaces_router, prefix="/api/v1/workspaces", tags=["workspaces"])
 

@@ -9,8 +9,11 @@ class MongoDB:
 db_instance = MongoDB()
 
 async def connect_to_mongo():
+    if not settings.MONGODB_URI:
+        print("No MONGODB_URI set. Using in-memory workspace store.")
+        return
     try:
-        db_instance.client = AsyncIOMotorClient(settings.MONGODB_URI, serverSelectionTimeoutMS=1500)
+        db_instance.client = AsyncIOMotorClient(settings.MONGODB_URI, serverSelectionTimeoutMS=5000)
         await db_instance.client.admin.command("ping")
         db_instance.db = db_instance.client.get_database("agentic_flow")
         print("Connected to MongoDB.")

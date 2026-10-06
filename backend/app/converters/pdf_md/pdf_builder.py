@@ -3,6 +3,12 @@ from typing import Optional
 import markdown
 from ...shared.schemas.template_models import DocumentControlMetadata, TemplateGuidanceProfile
 
+PDF_SAFE_CHARS = {
+    "‐": "-", "‑": "-", "‒": "-", "−": "-",
+    "→": "->", "←": "<-", "↔": "<->", "⇒": "=>",
+    "≈": "~", "≤": "<=", "≥": ">=", " ": " ", " ": " ", "​": "",
+}
+
 def build_pdf_deliverable(
     markdown_content: str,
     output_path: str,
@@ -20,6 +26,11 @@ def build_pdf_deliverable(
         guidance = DEFAULT_CORPORATE_THEME
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+
+    # The PDF's built-in fonts lack some Unicode punctuation LLMs use (non-breaking hyphens, arrows),
+    # which would render as empty boxes; swap them for plain equivalents.
+    for char, plain in PDF_SAFE_CHARS.items():
+        markdown_content = markdown_content.replace(char, plain)
 
     # Convert markdown to HTML with table and fenced code extensions
     html_body = markdown.markdown(

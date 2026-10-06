@@ -2,6 +2,7 @@ import os
 import uuid
 import asyncio
 import datetime
+import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -279,7 +280,11 @@ async def approve_and_compile(topic_id: str, body: ApproveRequest):
 
     ws = await _ws_get(topic_id)
     if not ws:
-        raise HTTPException(status_code=404, detail="Workspace not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="This topic no longer exists on the server (it was probably restarted). "
+                   "Refresh the page, create the topic again and relaunch.",
+        )
 
     run = _run(topic_id)
     content = body.content_markdown or run.get("refined_content")
@@ -292,7 +297,13 @@ async def approve_and_compile(topic_id: str, body: ApproveRequest):
     await _ws_update(topic_id, {"status": "COMPILING"})
 
     def compile_sync():
-        guidance = ReferenceAnalysisAgent().analyze_template(template_file_path)
+        analyzer = ReferenceAnalysisAgent()
+        try:
+            guidance = analyzer.analyze_template(template_file_path)
+        except Exception as e:
+            # A template that can't be parsed should not block delivery; use the default theme.
+            print(f"[Approve] Template analysis failed ({e}); using default theme.", flush=True)
+            guidance = analyzer.analyze_template(None)
         request = DocumentCompileRequest(
             topic_id=topic_id,
             title=ws["title"],
@@ -303,10 +314,19 @@ async def approve_and_compile(topic_id: str, body: ApproveRequest):
         )
         return FormatGenerationAgent().compile_document(request)
 
-    result = await asyncio.to_thread(compile_sync)
-    if not result.success:
-        await _ws_update(topic_id, {"status": "FAILED"})
-        raise HTTPException(status_code=500, detail=result.error_message or "Compilation failed.")
+    try:
+        result = await asyncio.to_thread(compile_sync)
+    except Exception as e:
+        traceback.print_exc()
+        result = None
+        error = f"{type(e).__name__}: {e}"
+    else:
+        error = None if result.success else (result.error_message or "Compilation failed.")
+
+    if error:
+        # Keep the reviewed draft so the user can fix it and approve again.
+        await _ws_update(topic_id, {"status": "WAITING_FOR_REVIEW"})
+        raise HTTPException(status_code=500, detail=f"Document compilation failed — {error}")
 
     page_count = result.page_or_slide_count
     if result.format == "PPT":
