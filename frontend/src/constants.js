@@ -1,17 +1,11 @@
-export const MODULES = {
-  A: { label: 'Module A', name: 'Gateway & Workspaces' },
-  B: { label: 'Module B', name: 'Cognitive Engine' },
-  C: { label: 'Module C', name: 'Document Compilers' },
-}
-
 export const AGENTS = [
-  { name: 'Requirement Analysis Agent', short: 'Requirement Analysis', module: 'B', icon: 'target', blurb: 'Decodes the brief into objectives, audience and tone.' },
-  { name: 'Planning Agent', short: 'Content Planning', module: 'B', icon: 'layers', blurb: 'Architects a section-by-section content plan.' },
-  { name: 'Reference Analysis Agent', short: 'Reference Analysis', module: 'C', icon: 'palette', blurb: 'Extracts palette, typography and layout from your template.' },
-  { name: 'Research & Enrichment Agent', short: 'Research & Enrichment', module: 'B', icon: 'search', blurb: 'Grounds every section in topic-scoped, cited facts.' },
-  { name: 'Content Generation Agent', short: 'Content Generation', module: 'B', icon: 'pen', blurb: 'Writes the full draft, section by section.' },
-  { name: 'Content Review Agent', short: 'Content Review', module: 'B', icon: 'shield', blurb: 'Audits readability, trims fluff and verifies citations.' },
-  { name: 'Format Generation Agent', short: 'Format Generation', module: 'C', icon: 'file', blurb: 'Compiles a native deliverable audited for WCAG 2.2 AA.' },
+  { name: 'Requirement Analysis Agent', short: 'Requirement Analysis', accent: 'violet', icon: 'target', blurb: 'Decodes the brief into objectives, audience and tone.' },
+  { name: 'Planning Agent', short: 'Content Planning', accent: 'violet', icon: 'layers', blurb: 'Architects a section-by-section content plan.' },
+  { name: 'Reference Analysis Agent', short: 'Reference Analysis', accent: 'cyan', icon: 'palette', blurb: 'Extracts palette, typography and layout from your template.' },
+  { name: 'Research & Enrichment Agent', short: 'Research & Enrichment', accent: 'violet', icon: 'search', blurb: 'Grounds every section in topic-scoped, cited facts.' },
+  { name: 'Content Generation Agent', short: 'Content Generation', accent: 'violet', icon: 'pen', blurb: 'Writes the full draft, section by section.' },
+  { name: 'Content Review Agent', short: 'Content Review', accent: 'violet', icon: 'shield', blurb: 'Audits readability, trims fluff and verifies citations.' },
+  { name: 'Format Generation Agent', short: 'Format Generation', accent: 'cyan', icon: 'file', blurb: 'Compiles a native deliverable audited for WCAG 2.2 AA.' },
 ]
 
 export const FORMATS = {

@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 
 class VectorService:
     """
-    Vector Context Store for Module B.
+    Vector Context Store for the cognitive pipeline.
     Handles topic-scoped document embeddings and vector retrieval.
     Guarantees strict isolation across topic boundaries using metadata filtering.
     """

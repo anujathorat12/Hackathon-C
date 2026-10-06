@@ -28,7 +28,7 @@ class PipelineGraphState(TypedDict):
 
 class PipelineGraph:
     """
-    LangGraph Stateful Execution Graph for Module B.
+    Stateful execution graph for the cognitive pipeline.
     Orchestrates:
     - Agent 1: Requirement Analysis
     - Agent 2: Planning
@@ -45,7 +45,7 @@ class PipelineGraph:
         )
 
     def load_template_guidance(self, template_file_path: Optional[str]) -> Dict[str, Any]:
-        """Agent 3 hook: pre-computed guidance JSON, else Module C's ReferenceAnalysisAgent, else the frozen fixture."""
+        """Agent 3 hook: pre-computed guidance JSON, else the ReferenceAnalysisAgent, else the frozen fixture."""
         if template_file_path and template_file_path.endswith(".json") and os.path.exists(template_file_path):
             try:
                 with open(template_file_path, "r", encoding="utf-8") as f:
@@ -57,7 +57,7 @@ class PipelineGraph:
             from app.agents.document.reference_agent import ReferenceAnalysisAgent
             return ReferenceAnalysisAgent().analyze_template(template_file_path).model_dump()
         except Exception as e:
-            print(f"[PipelineGraph] Module C reference analysis failed ({e}). Using fixture.")
+            print(f"[PipelineGraph] Reference analysis failed ({e}). Using fixture.")
 
         # Load frozen contract fixture from shared/fixtures/sample_template_guidance.json
         if os.path.exists(self.mock_template_path):
@@ -117,7 +117,9 @@ class PipelineGraph:
             draft = generation_agent.run(
                 plan=plan,
                 knowledge=knowledge,
-                template_guidance=guidance
+                template_guidance=guidance,
+                requirements=state.get("structured_requirements"),
+                user_instructions=state.get("user_instructions"),
             )
             new_state["draft_content"] = draft
             new_state["current_step"] = "Content Generation Complete"

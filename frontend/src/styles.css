@@ -18,9 +18,6 @@
   --amber: #fbbf24;
   --red: #f87171;
   --grad: linear-gradient(120deg, #8b5cf6 0%, #6366f1 45%, #22d3ee 100%);
-  --mod-A: #f472b6;
-  --mod-B: #a78bfa;
-  --mod-C: #22d3ee;
   --radius: 18px;
   --radius-sm: 12px;
   --shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--line);
@@ -81,17 +78,6 @@ code { font-family: var(--mono); font-size: 0.88em; background: rgba(255,255,255
 .brand-name span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .brand-sub { font-size: 12px; color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; }
 .header-right { display: flex; align-items: center; gap: 14px; }
-.module-legend { display: flex; gap: 6px; }
-.module-chip {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 4px 10px 4px 4px; border-radius: 999px;
-  background: var(--panel-2); border: 1px solid var(--line); font-size: 12px; color: var(--text-2);
-}
-.module-chip b {
-  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
-  font-size: 11px; color: #0b0f1c; background: var(--m);
-}
-.module-chip.mod-A { --m: var(--mod-A); } .module-chip.mod-B { --m: var(--mod-B); } .module-chip.mod-C { --m: var(--mod-C); }
 .health {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500;
@@ -182,8 +168,9 @@ code { font-family: var(--mono); font-size: 0.88em; background: rgba(255,255,255
   color: var(--fmt); background: color-mix(in srgb, var(--fmt) 14%, transparent); border: 1px solid color-mix(in srgb, var(--fmt) 35%, transparent);
 }
 .fmt-badge.lg { font-size: 12px; padding: 5px 11px; }
-.mod-tag { font: 600 10.5px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; padding: 5px 8px; border-radius: 6px; color: var(--m); background: color-mix(in srgb, var(--m) 12%, transparent); border: 1px solid color-mix(in srgb, var(--m) 30%, transparent); }
-.mod-A { --m: var(--mod-A); } .mod-B { --m: var(--mod-B); } .mod-C { --m: var(--mod-C); }
+.tag { font: 600 10.5px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; padding: 5px 8px; border-radius: 6px; color: var(--text-3); background: var(--panel-2); border: 1px solid var(--line); }
+.tag-fmt { color: var(--fmt); background: color-mix(in srgb, var(--fmt) 12%, transparent); border-color: color-mix(in srgb, var(--fmt) 30%, transparent); }
+.accent-violet { --m: var(--violet-2); } .accent-cyan { --m: var(--cyan); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { max-width: 100%; overflow-wrap: anywhere; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); color: var(--text-2); }
 .chip-violet { color: var(--violet-2); border-color: rgba(167,139,250,.3); background: rgba(139,92,246,.1); }
@@ -196,6 +183,8 @@ code { font-family: var(--mono); font-size: 0.88em; background: rgba(255,255,255
 .banner.small { font-size: 13px; padding: 9px 12px; margin-top: 10px; }
 .banner-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); color: #fecaca; }
 .banner-warn { background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.3); color: #fde68a; margin-top: 22px; }
+.banner-warn.review-warn { display: block; margin: 0 0 16px; }
+.banner-warn.review-warn svg { vertical-align: -4px; margin-right: 6px; }
 
 /* ── Empty state / hero ───────────────────────────────────────────────── */
 .hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 32px 40px; align-items: center; max-width: 1240px; margin: 0 auto; padding-top: 24px; animation: rise .6s ease both; }
@@ -461,8 +450,6 @@ code { font-family: var(--mono); font-size: 0.88em; background: rgba(255,255,255
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 1280px) {
-  .module-chip-name { display: none; }
-  .module-chip { padding-right: 4px; }
   .presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 1100px) {
@@ -483,7 +470,6 @@ code { font-family: var(--mono); font-size: 0.88em; background: rgba(255,255,255
   .hero { grid-template-columns: minmax(0, 1fr); }
   .orbit { display: none; }
   .header { padding: 12px 16px; }
-  .module-legend { display: none; }
   .main { padding: 20px 16px 48px; }
   .ws-hero { flex-direction: column; align-items: flex-start; padding: 22px; }
   .format-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

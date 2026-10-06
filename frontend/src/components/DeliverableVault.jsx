@@ -20,7 +20,7 @@ export default function DeliverableVault({ deliverable: d }) {
           <span className="eyebrow eyebrow-green"><Icon name="check" size={14} /> Deliverable ready</span>
           <h2 id="vault-h" className="h-lg">Deliverable vault</h2>
         </div>
-        <span className="mod-tag mod-C">Compiled by Module C</span>
+        <span className="tag tag-fmt" style={{ '--fmt': fmt.color }}>Native {fmt.label} file</span>
       </div>
 
       <div className="vault-body">

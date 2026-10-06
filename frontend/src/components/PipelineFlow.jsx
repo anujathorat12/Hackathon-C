@@ -114,7 +114,7 @@ export default function PipelineFlow({ events, status }) {
           const { state, event } = states[i]
           return (
             <li key={a.name} className={`node ${state}`} style={{ '--delay': `${i * 40}ms` }}>
-              <div className={`node-icon mod-${a.module}`}>
+              <div className={`node-icon accent-${a.accent}`}>
                 {state === 'done' ? <Icon name="check" size={18} strokeWidth={2.6} />
                   : state === 'failed' ? <Icon name="alert" size={18} />
                     : <Icon name={a.icon} size={18} />}
@@ -123,7 +123,6 @@ export default function PipelineFlow({ events, status }) {
                 <div className="node-top">
                   <span className="node-step">0{i + 1}</span>
                   <span className="node-name">{a.short}</span>
-                  <span className={`mod-tag mod-${a.module}`}>Module {a.module}</span>
                   {state === 'active' && <span className="node-live"><i />working</span>}
                   {state === 'gated' && <span className="node-gate"><Icon name="user" size={12} /> awaiting your approval</span>}
                 </div>

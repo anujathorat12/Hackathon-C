@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Dict, Optional, Any, Literal
 from pydantic import BaseModel, Field
 
@@ -36,7 +37,7 @@ class DocumentControlMetadata(BaseModel):
     document_title: str = "Technical Specification & Architecture"
     file_name: str = "Deliverable_v1.0"
     version: str = "1.0 (Final System Specification)"
-    date: str = "30 September 2026"
+    date: str = Field(default_factory=lambda: datetime.date.today().strftime("%d %B %Y"))
     author: str = "Autonomous Multi-Agent AI System (AGENT-101)"
 
 class DocumentCompileRequest(BaseModel):

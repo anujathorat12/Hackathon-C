@@ -8,7 +8,7 @@ from app.api.workspaces import router as workspaces_router
 
 app = FastAPI(
     title="AGENT-101 | Agentic Flow API",
-    description="Multi-Agent Content Generation System — Modules A + B + C Integrated",
+    description="Multi-Agent Content Generation System",
     version="1.0.0"
 )
 
@@ -37,7 +37,6 @@ def health_check():
         "version": "1.0.0",
         "storage": "mongodb" if get_database() is not None else "in-memory",
         "llm": settings.LLM_MODEL if settings.GROQ_API_KEY else "offline-fallback",
-        "modules": ["A: Gateway & Workspaces", "B: Cognitive Engine", "C: Document Compilers"],
     }
 
 # Serve the built React app (frontend/dist) when present — single-port demo mode.

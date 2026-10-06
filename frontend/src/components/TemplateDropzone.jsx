@@ -37,7 +37,7 @@ export default function TemplateDropzone({ topicId, templates, onUploaded, disab
     <section className="card template" aria-labelledby="tpl-h">
       <div className="card-head">
         <h2 id="tpl-h"><Icon name="palette" /> Brand template</h2>
-        <span className="mod-tag mod-C">Module C</span>
+        <span className="tag">Optional</span>
       </div>
 
       <div

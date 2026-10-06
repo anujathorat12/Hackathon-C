@@ -38,6 +38,13 @@ export default function ReviewStudio({ content, metrics = {}, status, onApprove 
         </div>
       </div>
 
+      {metrics.llm_mode === 'fallback' && (
+        <div className="banner banner-warn review-warn" role="alert">
+          <Icon name="alert" /> This draft is offline <b>sample content</b>, not written for your topic. Add a valid{' '}
+          <code>GROQ_API_KEY</code> to <code>backend/.env</code>, restart the server, then click Regenerate.
+        </div>
+      )}
+
       <div className="stats">
         {stats.map((s) => (
           <div key={s.label} className="stat">

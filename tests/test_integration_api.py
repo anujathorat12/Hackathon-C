@@ -19,7 +19,7 @@ def client():
 
 @pytest.mark.parametrize("fmt", list(FORMAT_EXT))
 def test_workspace_to_deliverable_flow(client, fmt):
-    """Module A workspace → Module B streamed agents → human approval → Module C compile → download."""
+    """Workspace → streamed agents → human approval → document compile → download."""
     ws_id = client.post("/api/v1/workspaces", json={
         "title": f"Integration {fmt}", "description": "End-to-end integration check.", "target_format": fmt,
     }).json()["workspace_id"]

@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any, Optional
 from app.agents.cognitive.planning_agent import ContentPlan
 from app.agents.cognitive.research_agent import KnowledgePackage
@@ -21,7 +22,8 @@ class GenerationAgent:
         "and include markdown tables with header rows. Limit bullet points to maximum 5 per block."
     )
 
-    def run(self, plan: ContentPlan, knowledge: KnowledgePackage, template_guidance: Optional[Dict[str, Any]] = None) -> str:
+    def run(self, plan: ContentPlan, knowledge: KnowledgePackage, template_guidance: Optional[Dict[str, Any]] = None,
+            requirements: Optional[Dict[str, Any]] = None, user_instructions: Optional[str] = None) -> str:
         guidance_str = ""
         if template_guidance:
             guidance_str = (
@@ -32,17 +34,29 @@ class GenerationAgent:
 
         facts_str = "\n".join([f"- {f.fact} [{f.citation}]" for f in knowledge.key_facts])
 
+        reqs = requirements or {}
         prompt = (
             f"Document Title: {plan.title}\n"
             f"Target Format: {plan.target_format}\n"
+            f"Objective: {reqs.get('objective', '')}\n"
+            f"Audience: {reqs.get('target_audience', '')}\n"
+            f"Tone: {reqs.get('tone', '')}\n"
+            f"User Instructions: {user_instructions or 'None'}\n"
             f"Template Guidance:\n{guidance_str}\n"
             f"Grounded Facts:\n{facts_str}\n\n"
-            f"Sections to Write:\n" + "\n".join([f"- {s.section_id}: {s.heading} (Word count ~{s.target_word_count})" for s in plan.sections]) + "\n\n"
-            "Generate the complete markdown text now. Include tables and structured headers."
+            f"Sections to Write:\n" + "\n".join([
+                f"- {s.heading} (~{s.target_word_count} words). Cover: {'; '.join(s.key_points)}" for s in plan.sections
+            ]) + "\n\n"
+            "Generate the complete markdown document now: start with '# ' and the title, use '## ' for each section, "
+            "include at least one markdown table with a header row, and cite facts inline as [Source]. "
+            "Do not include word counts, format or font notes, or any other meta commentary. Output only the markdown."
         )
 
         draft_content = llm_service.generate_completion(prompt=prompt, system_prompt=self.SYSTEM_PROMPT, response_format="text")
-        
+
+        # Strip planning annotations such as "(≈ 200 words)" if the model echoes them into headings.
+        draft_content = re.sub(r"\s*\*?\((?:≈|~|approx\.?)?\s*\d+\s*words?\)\*?", "", draft_content)
+
         # Clean formatting
         if not draft_content.startswith("# "):
             draft_content = f"# {plan.title}\n\n" + draft_content

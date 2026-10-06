@@ -152,7 +152,7 @@ async def delete_workspace(topic_id: str):
     return {"deleted": topic_id}
 
 
-# ─── Templates (Module A upload → Module C Reference Analysis) ──────────────────
+# ─── Templates (upload → Reference Analysis) ────────────────────────────────────
 
 @router.post("/{topic_id}/templates")
 async def upload_template(topic_id: str, file: UploadFile = File(...)):
@@ -190,7 +190,7 @@ async def list_templates(topic_id: str):
     return await _tpl_list(topic_id)
 
 
-# ─── Pipeline (Module B cognitive agents, streamed) ─────────────────────────────
+# ─── Pipeline (cognitive agents, streamed) ──────────────────────────────────────
 
 @router.post("/{topic_id}/generate")
 async def generate_document(topic_id: str):
@@ -269,7 +269,7 @@ async def get_refined_content(topic_id: str):
     return {"refined_content": run["refined_content"]}
 
 
-# ─── Human-in-the-loop approval → Module C compilation ──────────────────────────
+# ─── Human-in-the-loop approval → document compilation ──────────────────────────
 
 @router.post("/{topic_id}/approve")
 async def approve_and_compile(topic_id: str, body: ApproveRequest):

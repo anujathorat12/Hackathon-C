@@ -35,20 +35,36 @@ class ResearchAgent:
             top_k=3
         )
 
-        context_str = "\n".join([f"- {d['title']}: {d['content']} (Source: {d['source']})" for d in retrieved_docs])
+        # The store returns a placeholder record when nothing was seeded for this topic; it is not a citable source.
+        real_docs = [d for d in retrieved_docs if d.get("source") != "Grounded Knowledge Store"]
+        context_str = "\n".join([f"- {d['title']}: {d['content']} (Source: {d['source']})" for d in real_docs]) or "None"
 
         prompt = (
             f"Topic ID: {topic_id}\n"
             f"Title: {title}\n"
+            f"Planned Sections: {'; '.join(s.heading for s in plan.sections)}\n"
             f"Retrieved Scoped Context:\n{context_str}\n\n"
-            "Extract verified facts and grounded references for content enrichment."
+            "List 5-8 well-established facts about the title topic that support the planned sections. "
+            "Use the retrieved context only where it is relevant. Cite each fact to a named, credible public "
+            "source (organisation and report or year); never invent URLs or statistics you are unsure of."
         )
 
         data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT)
 
         try:
             raw_facts = data.get("key_facts", [])
-            facts = [KnowledgeFact(**f) if isinstance(f, dict) else KnowledgeFact(fact=str(f), citation="Verified Domain Context") for f in raw_facts]
+            facts = []
+            for f in raw_facts if isinstance(raw_facts, list) else []:
+                if isinstance(f, dict):
+                    text = f.get("fact") or f.get("text") or f.get("statement")
+                    source = f.get("citation") or f.get("source") or f.get("reference") or "Domain knowledge"
+                    if text:
+                        facts.append(KnowledgeFact(fact=str(text), citation=str(source)))
+                elif f:
+                    facts.append(KnowledgeFact(fact=str(f), citation="Domain knowledge"))
+            refs = data.get("grounded_references") or [d["title"] for d in retrieved_docs]
+            refs = [r if isinstance(r, str) else (r.get("title") or r.get("source") or str(r)) if isinstance(r, dict) else str(r)
+                    for r in (refs if isinstance(refs, list) else [refs])]
             
             return KnowledgePackage(
                 topic_id=topic_id,
@@ -56,8 +72,8 @@ class ResearchAgent:
                     KnowledgeFact(fact="LangGraph stateful graphs ensure zero state corruption.", citation="LangGraph Architecture Spec"),
                     KnowledgeFact(fact="Topic-scoped vector filters guarantee isolation across workspaces.", citation="MongoDB Vector Search Spec")
                 ],
-                grounded_references=data.get("grounded_references", [d["title"] for d in retrieved_docs]),
-                domain_context=data.get("domain_context", "Enterprise state machines require strict execution contracts and telemetry.")
+                grounded_references=refs,
+                domain_context=str(data.get("domain_context") or "Enterprise state machines require strict execution contracts and telemetry.")
             )
         except Exception:
             return KnowledgePackage(

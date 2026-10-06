@@ -5,7 +5,7 @@ export default function EmptyState({ onPreset, onNew, offline }) {
   return (
     <section className="hero">
       <div className="hero-copy">
-        <span className="eyebrow"><Icon name="spark" size={14} /> 7 autonomous agents · 3 integrated modules</span>
+        <span className="eyebrow"><Icon name="spark" size={14} /> 7 autonomous agents · human-approved · WCAG 2.2 AA</span>
         <h1>
           From a one-line brief to a <span className="grad-text">boardroom-ready</span> document.
         </h1>
@@ -32,7 +32,7 @@ export default function EmptyState({ onPreset, onNew, offline }) {
         </div>
         <div className="orbit-ring">
           {AGENTS.map((a, i) => (
-            <div key={a.name} className={`orbit-node mod-${a.module}`} style={{ '--i': i, '--n': AGENTS.length }}>
+            <div key={a.name} className={`orbit-node accent-${a.accent}`} style={{ '--i': i, '--n': AGENTS.length }}>
               <span><Icon name={a.icon} size={18} /></span>
             </div>
           ))}

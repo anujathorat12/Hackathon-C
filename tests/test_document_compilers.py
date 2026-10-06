@@ -14,7 +14,7 @@ from backend.app.shared.schemas.template_models import (
 
 def run_tests():
     print("==================================================================")
-    print("RUNNING STANDALONE TEST HARNESS: MODULE C DOCUMENT COMPILERS")
+    print("RUNNING STANDALONE TEST HARNESS: DOCUMENT COMPILERS")
     print("==================================================================")
 
     # 1. Load Fixtures
@@ -170,7 +170,7 @@ This architecture brief outlines the deployment of autonomous multi-agent system
     print(f"Test 6 Passed: PDF deliverable generated at: {pdf_result.file_path} ({pdf_result.file_size_bytes} bytes)")
 
     print("\n==================================================================")
-    print("ALL TESTS PASSED! MODULE C COMPILATION ENGINE IS 100% OPERATIONAL.")
+    print("ALL TESTS PASSED! DOCUMENT COMPILATION ENGINE IS 100% OPERATIONAL.")
     print("==================================================================")
 
 if __name__ == "__main__":

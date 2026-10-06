@@ -9,14 +9,19 @@ class LLMService:
         self.api_key = api_key or settings.GROQ_API_KEY
         self.model = model or settings.LLM_MODEL
         self.client = None
+        # Incremented whenever a call is answered by the offline fallback instead of the LLM.
+        self.fallback_count = 0
         
         if self.api_key:
             try:
                 # Initialize OpenAI compatible client pointing to Groq API
                 from openai import OpenAI
+                # Bounded timeout so a stalled call can't freeze the pipeline; retries back off on 429 rate limits.
                 self.client = OpenAI(
                     api_key=self.api_key,
-                    base_url=settings.GROQ_BASE_URL
+                    base_url=settings.GROQ_BASE_URL,
+                    timeout=120,
+                    max_retries=4
                 )
             except Exception as e:
                 print(f"[LLMService Warning] Could not initialize Groq/OpenAI client: {e}")
@@ -41,12 +46,20 @@ class LLMService:
                 
                 if response_format == "json":
                     kwargs["response_format"] = {"type": "json_object"}
-                    
+
+                # gpt-oss models spend tokens on hidden reasoning; "low" keeps runs fast and within free-tier limits.
+                if "gpt-oss" in self.model:
+                    kwargs["extra_body"] = {"reasoning_effort": "low"}
+
                 response = self.client.chat.completions.create(**kwargs)
-                return response.choices[0].message.content
+                content = response.choices[0].message.content
+                if content:
+                    return content
+                print("[LLMService Error] Groq returned an empty response. Falling back to cognitive parser.", flush=True)
             except Exception as e:
-                print(f"[LLMService Error] Groq API call failed ({e}). Falling back to cognitive parser.")
+                print(f"[LLMService Error] Groq API call failed ({e}). Falling back to cognitive parser.", flush=True)
         
+        self.fallback_count += 1
         return self._generate_fallback(prompt, system_prompt, response_format)
 
     def generate_json(self, prompt: str, system_prompt: str) -> Dict[str, Any]:

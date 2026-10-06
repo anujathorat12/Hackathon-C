@@ -155,7 +155,7 @@ export default function Workspace({ ws, onStatus }) {
                 : hasRun ? <><Icon name="refresh" /> Regenerate</>
                   : <><Icon name="play" /> Launch autonomous generation</>}
             </button>
-            {!hasRun && !busy && <span className="hint">7 agents · ~10 seconds · you approve before compile</span>}
+            {!hasRun && !busy && <span className="hint">7 agents · about a minute · you approve before compile</span>}
           </div>
         </div>
         <ProgressRing value={progress} status={status} />

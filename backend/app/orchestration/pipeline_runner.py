@@ -6,6 +6,7 @@ from typing import AsyncGenerator, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
 from app.orchestration.pipeline_graph import pipeline_graph, PipelineGraphState
+from app.services.llm_service import llm_service
 
 class PipelineProgressEvent(BaseModel):
     topic_id: str
@@ -27,7 +28,7 @@ async def run_pipeline_async(
 ) -> AsyncGenerator[PipelineProgressEvent, None]:
     """
     Async generator executing the 5-agent graph step-by-step.
-    Yields telemetry events (PipelineProgressEvent) for Member A UI / CLI runner.
+    Yields telemetry events (PipelineProgressEvent) for the web UI / CLI runner.
     """
     active_topic_id = topic_id or str(uuid.uuid4())
 
@@ -59,6 +60,7 @@ async def run_pipeline_async(
         ("Agent 6: Content Review", 85, "Content Review Agent", "Reviewed readability, shortened long sentences and verified citations."),
     ]
 
+    fallbacks_before = llm_service.fallback_count
     prev_progress = 0
     for node, progress, agent_name, msg in steps:
         yield PipelineProgressEvent(
@@ -95,6 +97,8 @@ async def run_pipeline_async(
                 "redundancies_removed": changelog.get("redundancies_removed", 2),
                 "sentences_shortened": changelog.get("sentences_shortened", 1),
                 "verified_citations_count": changelog.get("verified_citations_count", 4),
+                # "fallback" means at least one agent used offline sample output instead of the LLM.
+                "llm_mode": "fallback" if llm_service.fallback_count > fallbacks_before else "live",
             }
 
         yield PipelineProgressEvent(
@@ -108,7 +112,7 @@ async def run_pipeline_async(
         prev_progress = progress
 
 def main():
-    parser = argparse.ArgumentParser(description="Module B Standalone Cognitive Pipeline CLI Runner")
+    parser = argparse.ArgumentParser(description="Standalone Cognitive Pipeline CLI Runner")
     parser.add_argument("--title", type=str, default="Autonomous Multi-Agent AI System Architecture", help="Document Title")
     parser.add_argument("--description", type=str, default="Comprehensive technical guide for multi-agent execution graphs.", help="Document Description")
     parser.add_argument("--format", type=str, choices=["PPT", "DOCX", "MD", "PDF"], default="DOCX", help="Target Format")
@@ -117,7 +121,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 70)
-    print(">>> STARTING MODULE B STANDALONE COGNITIVE PIPELINE")
+    print(">>> STARTING STANDALONE COGNITIVE PIPELINE")
     print(f"Title: {args.title}")
     print(f"Format: {args.format}")
     print("=" * 70)

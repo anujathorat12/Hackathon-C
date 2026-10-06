@@ -1,5 +1,4 @@
 import Icon from './Icon'
-import { MODULES } from '../constants'
 
 export default function Header({ health, onHome }) {
   const online = !!health
@@ -26,13 +25,6 @@ export default function Header({ health, onHome }) {
       </button>
 
       <div className="header-right">
-        <div className="module-legend" aria-label="System modules">
-          {Object.entries(MODULES).map(([key, m]) => (
-            <span key={key} className={`module-chip mod-${key}`} title={`${m.label}: ${m.name}`}>
-              <b>{key}</b><span className="module-chip-name">{m.name}</span>
-            </span>
-          ))}
-        </div>
         <div className={`health ${online ? 'ok' : pending ? 'wait' : 'down'}`} role="status">
           <span className="health-dot" />
           {pending && 'Connecting…'}
