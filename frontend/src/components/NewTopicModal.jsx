@@ -21,8 +21,12 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
   const titleRef = useRef(null)
   const fileRef = useRef(null)
 
+  // Focus the title once when the dialog opens (not on every re-render, which would steal focus while typing).
   useEffect(() => {
     titleRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && !busy && close()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
