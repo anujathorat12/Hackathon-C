@@ -4,7 +4,6 @@ import Icon from './Icon'
 import ProgressRing from './ProgressRing'
 import StageRail from './StageRail'
 import PipelineFlow from './PipelineFlow'
-import TemplateDropzone from './TemplateDropzone'
 import Telemetry from './Telemetry'
 import ReviewStudio from './ReviewStudio'
 import DeliverableVault from './DeliverableVault'
@@ -135,6 +134,8 @@ export default function Workspace({ ws, onStatus }) {
   const fmt = FORMATS[ws.target_format] || FORMATS.DOCX
   const busy = streaming || status === 'PROCESSING' || status === 'COMPILING'
   const hasRun = events.length > 0
+  const template = templates[templates.length - 1]
+  const palette = Object.values(template?.guidance?.color_palette || {}).slice(0, 4)
 
   return (
     <div className="workspace">
@@ -143,6 +144,15 @@ export default function Workspace({ ws, onStatus }) {
           <div className="ws-hero-tags">
             <span className="fmt-badge lg" style={{ '--fmt': fmt.color }}>{fmt.label} {fmt.ext}</span>
             <span className={`status-pill st-${status}`}><i />{STATUS_LABELS[status] || status}</span>
+            <span className="tpl-chip" title={template ? `Brand template: ${template.file_name}` : 'No template uploaded'}>
+              {palette.length > 0 && (
+                <span className="tpl-chip-swatches">
+                  {palette.map((c) => <i key={c} style={{ background: c }} />)}
+                </span>
+              )}
+              <Icon name="palette" size={13} />
+              <span className="tpl-chip-name">{template ? template.file_name : 'Default theme'}</span>
+            </span>
           </div>
           <h1 className="ws-title-lg">{ws.title}</h1>
           <p className="ws-desc">{ws.description}</p>
@@ -173,7 +183,6 @@ export default function Workspace({ ws, onStatus }) {
       <div className="ws-grid">
         <PipelineFlow events={events} status={status} />
         <div className="ws-side">
-          <TemplateDropzone topicId={ws.id} templates={templates} onUploaded={(t) => setTemplates((l) => [...l, t])} disabled={busy} />
           <Telemetry events={events} live={busy} />
         </div>
       </div>

@@ -24,11 +24,17 @@ export default function App() {
       .finally(() => setLoaded(true))
   }, [])
 
+  // The modal uploads the optional template after this, then calls openCreated.
   const createWorkspace = async (data) => {
     const res = await api.create(data)
     const ws = { id: res.workspace_id, ...data, status: res.status, created_at: new Date().toISOString() }
     setWorkspaces((list) => [...list, ws])
-    setActiveId(ws.id)
+    return ws.id
+  }
+
+  const openCreated = (id) => {
+    setDraft(null)
+    setActiveId(id)
   }
 
   const deleteWorkspace = async (id) => {
@@ -74,7 +80,9 @@ export default function App() {
         </main>
       </div>
 
-      {draft && <NewTopicModal initial={draft} onClose={() => setDraft(null)} onCreate={createWorkspace} />}
+      {draft && (
+        <NewTopicModal initial={draft} onClose={() => setDraft(null)} onCreate={createWorkspace} onCreated={openCreated} />
+      )}
     </div>
   )
 }
