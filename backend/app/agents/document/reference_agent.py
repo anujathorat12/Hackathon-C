@@ -45,5 +45,6 @@ class ReferenceAnalysisAgent:
             print(f"[{self.agent_name}] Unsupported template extension '{ext}'. Falling back to default.")
             profile = normalize_guidance()
 
+        profile.source_file_path = os.path.abspath(file_path)
         print(f"[{self.agent_name}] Successfully generated TemplateGuidanceProfile (Type: {profile.template_type}, Primary Color: {profile.color_palette.primary_hex})")
         return profile

@@ -28,7 +28,8 @@ class PlanningAgent:
         "'section_id', 'heading', 'key_points', 'target_word_count', and 'layout_type'."
     )
 
-    def run(self, title: str, target_format: str, requirements: StructuredRequirements) -> ContentPlan:
+    def run(self, title: str, target_format: str, requirements: StructuredRequirements, language: str = "English",
+            source_digest: Optional[str] = None) -> ContentPlan:
         prompt = (
             f"Document Title: {title}\n"
             f"Target Format: {target_format}\n"
@@ -39,8 +40,15 @@ class PlanningAgent:
             f"Constraints: {', '.join(requirements.constraints)}\n\n"
             f"Generate a multi-section document plan customized for {target_format} format "
             f"({'6-10 slides, one section per slide' if target_format == 'PPT' else '4-7 sections'}). "
-            "Every section must be specifically about the document title above."
+            "Every section must be specifically about the document title above. "
+            f"Write all headings and key points in {language}."
         )
+        if source_digest:
+            prompt += (
+                "\n\nThe document must be based ONLY on the user's source documents below. Plan only sections "
+                "these sources actually cover — do not plan sections (e.g. eligibility, pricing, insurance) "
+                f"that the sources do not mention.\n\nSource documents:\n{source_digest}"
+            )
         data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT)
         if not isinstance(data, dict):
             data = {}

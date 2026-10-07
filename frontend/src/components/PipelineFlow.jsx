@@ -58,6 +58,7 @@ function Insight({ name, payload = {} }) {
     case 'Research & Enrichment Agent':
       return (
         <div className="insight">
+          {payload.from_user_sources && <div className="chips" style={{ marginBottom: 8 }}><Chip tone="green">Grounded in your uploaded sources</Chip></div>}
           <ul className="facts">
             {(payload.key_facts || []).slice(0, 2).map((f) => (
               <li key={f.fact}>{f.fact} <Chip tone="cyan">{f.citation}</Chip></li>
@@ -75,9 +76,10 @@ function Insight({ name, payload = {} }) {
     case 'Content Review Agent':
       return (
         <div className="insight chips">
-          <Chip tone="green">Grade {payload.reading_grade_level}</Chip>
-          <Chip>{payload.redundancies_removed} redundancies removed</Chip>
-          <Chip>{payload.verified_citations_count} citations verified</Chip>
+          {payload.reading_grade_level > 0 && <Chip tone="green">Reading grade {payload.reading_grade_level}{payload.initial_reading_grade_level ? ` (draft ${payload.initial_reading_grade_level})` : ''}</Chip>}
+          <Chip>{payload.words_trimmed ?? 0} words trimmed</Chip>
+          <Chip>{payload.sentences_shortened ?? 0} long sentences shortened</Chip>
+          <Chip>{payload.citations_count ?? 0} sources cited</Chip>
         </div>
       )
     case 'Format Generation Agent':
@@ -85,7 +87,7 @@ function Insight({ name, payload = {} }) {
         <div className="insight chips">
           <Chip tone="cyan">{payload.file_name}</Chip>
           <Chip>{formatBytes(payload.file_size_bytes)}</Chip>
-          <Chip tone={payload.wcag_compliant ? 'green' : 'amber'}>WCAG 2.2 AA {payload.wcag_compliant ? '✓' : '!'}</Chip>
+          <Chip tone={payload.wcag_compliant ? 'green' : 'amber'}>Accessibility checks {payload.wcag_compliant ? '✓' : '!'}</Chip>
         </div>
       ) : null
     default:

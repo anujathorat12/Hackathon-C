@@ -1,7 +1,8 @@
 import Icon from './Icon'
 import { FORMATS, STATUS_LABELS } from '../constants'
+import { ValueTotals } from './ValueMeter'
 
-export default function Sidebar({ workspaces, activeId, onSelect, onNew, onDelete }) {
+export default function Sidebar({ workspaces, activeId, onSelect, onNew, onDelete, stats }) {
   return (
     <aside className="sidebar" aria-label="Topic workspaces">
       <button className="btn btn-primary btn-block" onClick={onNew}>
@@ -38,6 +39,7 @@ export default function Sidebar({ workspaces, activeId, onSelect, onNew, onDelet
         })}
       </nav>
 
+      <ValueTotals stats={stats} compact />
       <div className="sidebar-foot">
         <Icon name="shield" size={14} /> Topic-scoped memory · zero cross-topic leakage
       </div>

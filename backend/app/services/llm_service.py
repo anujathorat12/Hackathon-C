@@ -11,6 +11,10 @@ class LLMService:
         self.client = None
         # Incremented whenever a call is answered by the offline fallback instead of the LLM.
         self.fallback_count = 0
+        # Running token totals reported by the API; callers diff snapshots to measure one run.
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.calls = 0
         
         if self.api_key:
             try:
@@ -32,33 +36,43 @@ class LLMService:
         Falls back to rule-based fallback generator if API key is not present.
         """
         if self.client:
-            try:
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ]
-                
-                kwargs = {
-                    "model": self.model,
-                    "messages": messages,
-                    "temperature": 0.3
-                }
-                
-                if response_format == "json":
-                    kwargs["response_format"] = {"type": "json_object"}
+            # JSON calls try Groq's strict JSON mode first; it occasionally rejects valid-looking output
+            # ("json_validate_failed"), so retry once as plain text asking for JSON and parse it ourselves.
+            attempts = ["json_mode", "json_in_text"] if response_format == "json" else ["text"]
+            for attempt in attempts:
+                try:
+                    user_prompt = prompt
+                    if attempt == "json_in_text":
+                        user_prompt += "\n\nRespond with a single valid JSON object only — no prose, no code fences."
+                    kwargs = {
+                        "model": self.model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "temperature": 0.3,
+                    }
+                    if attempt == "json_mode":
+                        kwargs["response_format"] = {"type": "json_object"}
 
-                # gpt-oss models spend tokens on hidden reasoning; "low" keeps runs fast and within free-tier limits.
-                if "gpt-oss" in self.model:
-                    kwargs["extra_body"] = {"reasoning_effort": "low"}
+                    # gpt-oss models spend tokens on hidden reasoning; "low" keeps runs fast and within free-tier limits.
+                    if "gpt-oss" in self.model:
+                        kwargs["extra_body"] = {"reasoning_effort": "low"}
 
-                response = self.client.chat.completions.create(**kwargs)
-                content = response.choices[0].message.content
-                if content:
-                    return content
-                print("[LLMService Error] Groq returned an empty response. Falling back to cognitive parser.", flush=True)
-            except Exception as e:
-                print(f"[LLMService Error] Groq API call failed ({e}). Falling back to cognitive parser.", flush=True)
-        
+                    response = self.client.chat.completions.create(**kwargs)
+                    usage = getattr(response, "usage", None)
+                    if usage is not None:
+                        self.prompt_tokens += usage.prompt_tokens or 0
+                        self.completion_tokens += usage.completion_tokens or 0
+                    self.calls += 1
+                    content = response.choices[0].message.content
+                    if content:
+                        return content
+                    print(f"[LLMService Error] Groq returned an empty response ({attempt}).", flush=True)
+                except Exception as e:
+                    print(f"[LLMService Error] Groq API call failed ({attempt}): {e}", flush=True)
+            print("[LLMService Error] All attempts failed. Falling back to cognitive parser.", flush=True)
+
         self.fallback_count += 1
         return self._generate_fallback(prompt, system_prompt, response_format)
 

@@ -28,6 +28,7 @@ class LayoutRules(BaseModel):
 class TemplateGuidanceProfile(BaseModel):
     template_type: Literal["PPTX", "DOCX", "RESEARCH_PAPER", "DEFAULT"] = "DEFAULT"
     source_file_name: Optional[str] = None
+    source_file_path: Optional[str] = Field(default=None, description="Uploaded template on disk; builders reuse its layouts when possible")
     color_palette: ColorPalette = Field(default_factory=ColorPalette)
     typography: Typography = Field(default_factory=Typography)
     layout_rules: LayoutRules = Field(default_factory=LayoutRules)
@@ -36,9 +37,9 @@ class TemplateGuidanceProfile(BaseModel):
 class DocumentControlMetadata(BaseModel):
     document_title: str = "Technical Specification & Architecture"
     file_name: str = "Deliverable_v1.0"
-    version: str = "1.0 (Final System Specification)"
+    version: str = "1.0"
     date: str = Field(default_factory=lambda: datetime.date.today().strftime("%d %B %Y"))
-    author: str = "Autonomous Multi-Agent AI System (AGENT-101)"
+    author: str = "Prepared with AGENT-101 (AI-generated, human-reviewed)"
 
 class DocumentCompileRequest(BaseModel):
     topic_id: str
@@ -48,6 +49,7 @@ class DocumentCompileRequest(BaseModel):
     template_guidance: Optional[TemplateGuidanceProfile] = Field(default_factory=TemplateGuidanceProfile)
     document_control_metadata: Optional[DocumentControlMetadata] = Field(default_factory=DocumentControlMetadata)
     output_directory: Optional[str] = "storage/outputs"
+    speaker_notes: Optional[Dict[str, str]] = Field(default=None, description="Presenter notes keyed by section heading (decks only)")
 
 class AccessibilityReport(BaseModel):
     wcag_compliant: bool = True

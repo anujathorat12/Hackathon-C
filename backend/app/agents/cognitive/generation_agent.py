@@ -23,7 +23,8 @@ class GenerationAgent:
     )
 
     def run(self, plan: ContentPlan, knowledge: KnowledgePackage, template_guidance: Optional[Dict[str, Any]] = None,
-            requirements: Optional[Dict[str, Any]] = None, user_instructions: Optional[str] = None) -> str:
+            requirements: Optional[Dict[str, Any]] = None, user_instructions: Optional[str] = None,
+            language: str = "English") -> str:
         guidance_str = ""
         if template_guidance:
             guidance_str = (
@@ -42,6 +43,12 @@ class GenerationAgent:
             f"Audience: {reqs.get('target_audience', '')}\n"
             f"Tone: {reqs.get('tone', '')}\n"
             f"User Instructions: {user_instructions or 'None'}\n"
+            f"Language: write the entire document in {language} (keep source names as published).\n"
+            + ("Sources (STRICT): the Grounded Facts below come from the user's own documents and are the ONLY "
+               "allowed source of facts. Do not add any benefit, number, name, date or claim that is not in them. "
+               "Cite every sentence that states a fact with its exact label in square brackets, e.g. [report.pdf, p.3]. "
+               "If a planned section has no supporting facts, write at most one general sentence for it or omit it.\n"
+               if knowledge.from_user_sources else "") +
             f"Template Guidance:\n{guidance_str}\n"
             f"Grounded Facts:\n{facts_str}\n\n"
             f"Sections to Write:\n" + "\n".join([
@@ -56,6 +63,9 @@ class GenerationAgent:
 
         # Strip planning annotations such as "(≈ 200 words)" if the model echoes them into headings.
         draft_content = re.sub(r"\s*\*?\((?:≈|~|approx\.?)?\s*\d+\s*words?\)\*?", "", draft_content)
+
+        # Some models cite with lenticular brackets; normalise to [ ] so citations can be checked.
+        draft_content = draft_content.replace("【", "[").replace("】", "]")
 
         # Clean formatting
         if not draft_content.startswith("# "):

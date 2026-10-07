@@ -10,6 +10,7 @@ class KnowledgeFact(BaseModel):
 
 class KnowledgePackage(BaseModel):
     topic_id: str
+    from_user_sources: bool = False
     key_facts: List[KnowledgeFact] = Field(default_factory=list)
     grounded_references: List[str] = Field(default_factory=list)
     domain_context: str = ""
@@ -27,7 +28,49 @@ class ResearchAgent:
         "Output JSON with 'key_facts' (list of {fact, citation}), 'grounded_references', and 'domain_context'."
     )
 
+    SOURCES_PROMPT = (
+        "You are the Research & Enrichment Agent (Agent 4). You are given passages from the user's own source "
+        "documents, each with a label like 'report.pdf, p.3'. Extract facts ONLY from these passages — never from "
+        "outside knowledge — and cite each fact with the passage's exact label. Output JSON with 'key_facts' "
+        "(list of {fact, citation}), 'grounded_references' (labels used) and 'domain_context'."
+    )
+
+    def _run_from_sources(self, topic_id: str, title: str, plan: ContentPlan) -> KnowledgePackage:
+        """Per-section retrieval from the topic's uploaded documents; every fact cites a passage label."""
+        passages, seen = [], set()
+        for s in plan.sections:
+            for p in vector_service.search(topic_id, f"{title} {s.heading} {' '.join(s.key_points)}", top_k=3):
+                if p["label"] + p["content"][:40] not in seen:
+                    seen.add(p["label"] + p["content"][:40])
+                    passages.append(p)
+        passages = passages[:14] or vector_service.search(topic_id, title, top_k=8)
+        context = "\n\n".join(f"[{p['label']}] {p['content']}" for p in passages)
+        prompt = (
+            f"Title: {title}\n"
+            f"Planned Sections: {'; '.join(s.heading for s in plan.sections)}\n\n"
+            f"Source passages:\n{context}\n\n"
+            "List 6-10 facts from these passages that support the planned sections, each cited with its exact label."
+        )
+        data = llm_service.generate_json(prompt=prompt, system_prompt=self.SOURCES_PROMPT)
+        labels = {p["label"] for p in passages}
+        facts = []
+        for f in (data.get("key_facts") or []) if isinstance(data, dict) else []:
+            if isinstance(f, dict) and (f.get("fact") or f.get("text")):
+                citation = str(f.get("citation") or f.get("source") or "").strip("[] ")
+                facts.append(KnowledgeFact(fact=str(f.get("fact") or f.get("text")), citation=citation or "Uploaded sources"))
+        if not facts:  # LLM unavailable: fall back to the passages themselves
+            facts = [KnowledgeFact(fact=p["content"][:240], citation=p["label"]) for p in passages[:6]]
+        return KnowledgePackage(
+            topic_id=topic_id,
+            from_user_sources=True,
+            key_facts=facts,
+            grounded_references=sorted({f.citation for f in facts if f.citation in labels} or labels),
+            domain_context=str((data or {}).get("domain_context") or "Grounded in the user's uploaded source documents."),
+        )
+
     def run(self, topic_id: str, title: str, plan: ContentPlan) -> KnowledgePackage:
+        if vector_service.has_sources(topic_id):
+            return self._run_from_sources(topic_id, title, plan)
         # Retrieve topic-scoped context from vector database
         retrieved_docs = vector_service.query_topic_knowledge(
             topic_id=topic_id,

@@ -4,6 +4,7 @@ from docx import Document
 from docx.oxml.ns import qn
 from ..shared.schemas.template_models import TemplateGuidanceProfile
 from .template_normalizer import normalize_guidance
+from .theme_reader import read_theme, palette_from_theme
 
 def parse_docx_template(file_path: str) -> TemplateGuidanceProfile:
     """
@@ -55,13 +56,26 @@ def parse_docx_template(file_path: str) -> TemplateGuidanceProfile:
                             table_header_hex = f"#{val}" if not val.startswith("#") else val
                             break
 
+        # A customised theme defines the brand colours; explicit style colours (above) still win.
+        secondary_hex, accent_hex = "#4B6B94", "#00A3E0"
+        theme = read_theme(file_path)
+        if theme and not theme["is_stock"]:
+            palette = palette_from_theme(theme)
+            secondary_hex, accent_hex = palette["secondary_hex"], palette["accent_hex"]
+            if primary_hex == "#1B365D":
+                primary_hex = palette["primary_hex"]
+            if table_header_hex == "#1B365D":
+                table_header_hex = primary_hex
+            heading_font = heading_font if heading_font != "Calibri" else (theme["heading_font"] or heading_font)
+            body_font = body_font if body_font != "Calibri" else (theme["body_font"] or body_font)
+
         raw_data: Dict[str, Any] = {
             "template_type": "DOCX",
             "source_file_name": base_name,
             "color_palette": {
                 "primary_hex": primary_hex,
-                "secondary_hex": "#4B6B94",
-                "accent_hex": "#00A3E0",
+                "secondary_hex": secondary_hex,
+                "accent_hex": accent_hex,
                 "background_hex": "#FFFFFF",
                 "text_hex": "#222222"
             },

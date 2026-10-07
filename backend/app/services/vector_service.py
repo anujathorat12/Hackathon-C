@@ -1,4 +1,5 @@
 import os
+import re
 from typing import List, Dict, Any
 
 class VectorService:
@@ -24,7 +25,8 @@ class VectorService:
                 "topic_id": topic_id,
                 "title": doc.get("title", "Untitled Reference"),
                 "content": doc.get("content", ""),
-                "source": doc.get("source", "User Document")
+                "source": doc.get("source", "User Document"),
+                "label": doc.get("label") or doc.get("title", "Untitled Reference"),
             }
             self._in_memory_store[topic_id].append(record)
 
@@ -56,6 +58,38 @@ class VectorService:
 
         scored_records.sort(key=lambda x: x["score"], reverse=True)
         return scored_records[:top_k]
+
+    # ─── User-uploaded sources ────────────────────────────────────────────────
+
+    def has_sources(self, topic_id: str) -> bool:
+        return bool(self._in_memory_store.get(topic_id))
+
+    def remove_source(self, topic_id: str, source: str) -> None:
+        self._in_memory_store[topic_id] = [r for r in self._in_memory_store.get(topic_id, []) if r["source"] != source]
+
+    def search(self, topic_id: str, query: str, top_k: int = 4) -> List[Dict[str, Any]]:
+        """Keyword search over this topic's uploaded passages (term-frequency weighted). Empty if none match."""
+        terms = {w for w in re.findall(r"[^\W_]{3,}", query.lower()) if w not in STOPWORDS}
+        if not terms:
+            return []
+        scored = []
+        for r in self._in_memory_store.get(topic_id, []):
+            words = re.findall(r"[^\W_]{3,}", r["content"].lower())
+            if not words:
+                continue
+            hits = sum(1 for w in words if w in terms)
+            coverage = len(terms & set(words))
+            if coverage:
+                scored.append((coverage * 2 + hits / len(words) * 100, r))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [r for _, r in scored[:top_k]]
+
+
+STOPWORDS = set("""the and for with that this from are was were have has had not but you your our their its into about
+over under more most such than then them they will would can could should what which when where while how all any
+each also been being both between during other some these those only very just like make made use using used
+""".split())
+
 
 # Global singleton
 vector_service = VectorService()

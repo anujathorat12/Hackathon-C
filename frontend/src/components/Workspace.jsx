@@ -19,7 +19,9 @@ export default function Workspace({ ws, onStatus }) {
   const [events, setEvents] = useState([])
   const [content, setContent] = useState('')
   const [deliverable, setDeliverable] = useState(null)
+  const [versions, setVersions] = useState([])
   const [templates, setTemplates] = useState([])
+  const [sources, setSources] = useState([])
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState(null)
   const socketRef = useRef(null)
@@ -35,6 +37,7 @@ export default function Workspace({ ws, onStatus }) {
     setEvents(snap.events || [])
     setContent(snap.refined_content || '')
     setDeliverable(snap.deliverables?.length ? snap.deliverables[snap.deliverables.length - 1] : null)
+    setVersions(snap.deliverables || [])
     // A PROCESSING status with no events means the server restarted mid-run.
     const s = snap.status === 'PROCESSING' && !snap.events?.length ? 'CREATED' : snap.status
     setStatusState(s)
@@ -54,6 +57,7 @@ export default function Workspace({ ws, onStatus }) {
       }).catch(() => {})
     load()
     api.templates(ws.id).then((t) => !cancelled && setTemplates(t)).catch(() => {})
+    api.sources(ws.id).then((s) => !cancelled && setSources(s)).catch(() => {})
     return () => { cancelled = true; clearTimeout(timer) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ws.id])
@@ -72,6 +76,7 @@ export default function Workspace({ ws, onStatus }) {
     setEvents([])
     setContent('')
     setDeliverable(null)
+    setVersions([])
     setStreaming(true)
     setStatus('PROCESSING')
     try {
@@ -114,8 +119,9 @@ export default function Workspace({ ws, onStatus }) {
       const d = await api.approve(ws.id, markdown)
       setContent(markdown)
       setDeliverable(d)
+      setVersions((list) => [...list.filter((x) => x.file_name !== d.file_name), d])
       setEvents((prev) => [...prev, localEvent('Format Generation Agent', 'COMPLETED',
-        `Compiled ${d.file_name} — WCAG 2.2 AA ${d.wcag_compliant ? 'passed' : 'needs attention'}.`, d)])
+        `Compiled ${d.file_name} — accessibility checks ${d.wcag_compliant ? 'passed' : 'need attention'}.`, d)])
       setStatus('COMPLETED')
     } catch (e) {
       setError(e.message)
@@ -144,6 +150,14 @@ export default function Workspace({ ws, onStatus }) {
           <div className="ws-hero-tags">
             <span className="fmt-badge lg" style={{ '--fmt': fmt.color }}>{fmt.label} {fmt.ext}</span>
             <span className={`status-pill st-${status}`}><i />{STATUS_LABELS[status] || status}</span>
+            {ws.language && ws.language !== 'English' && (
+              <span className="tpl-chip"><Icon name="type" size={13} /><span className="tpl-chip-name">{ws.language}</span></span>
+            )}
+            {sources.length > 0 && (
+              <span className="tpl-chip" title={sources.map((s) => `${s.file_name} (${s.locations} sections/pages)`).join(', ')}>
+                <Icon name="folder" size={13} /><span className="tpl-chip-name">{sources.length} source{sources.length > 1 ? 's' : ''}</span>
+              </span>
+            )}
             <span className="tpl-chip" title={template ? `Brand template: ${template.file_name}` : 'No template uploaded'}>
               {palette.length > 0 && (
                 <span className="tpl-chip-swatches">
@@ -190,6 +204,8 @@ export default function Workspace({ ws, onStatus }) {
       {content && ['WAITING_FOR_REVIEW', 'COMPILING', 'COMPLETED'].includes(status) && (
         <div ref={reviewRef}>
           <ReviewStudio
+            topicId={ws.id}
+            format={ws.target_format}
             content={content}
             metrics={reviewEvent?.payload}
             status={status}
@@ -200,7 +216,7 @@ export default function Workspace({ ws, onStatus }) {
 
       {deliverable && status === 'COMPLETED' && (
         <div ref={vaultRef}>
-          <DeliverableVault deliverable={deliverable} />
+          <DeliverableVault deliverable={deliverable} versions={versions} />
         </div>
       )}
     </div>

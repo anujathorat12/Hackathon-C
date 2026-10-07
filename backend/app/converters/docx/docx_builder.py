@@ -5,11 +5,17 @@ from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import parse_xml
-from docx.oxml.ns import nsdecls
+from docx.oxml.ns import nsdecls, qn
 
 from ...shared.schemas.template_models import DocumentControlMetadata, TemplateGuidanceProfile
 from .document_control import insert_document_control_page, hex_to_rgb
 from .table_styler import insert_styled_table
+
+def _has_content(part) -> bool:
+    """True if a header/footer has text or graphics (a logo) worth keeping."""
+    xml = part._element.xml
+    return bool(part.is_linked_to_previous is False and ("<w:drawing" in xml or "<w:pict" in xml or any(p.text.strip() for p in part.paragraphs)))
+
 
 def build_docx_deliverable(
     markdown_content: str,
@@ -36,11 +42,22 @@ def build_docx_deliverable(
     # Ensure output directory exists
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
 
-    doc = Document()
+    # Brand-faithful path: write into the uploaded Word template so its styles, page setup,
+    # header and footer (e.g. the company logo) are kept.
+    template_path = guidance.source_file_path
+    use_template = bool(template_path and template_path.lower().endswith(".docx") and os.path.exists(template_path))
+    doc = Document(template_path) if use_template else Document()
+    if use_template:
+        body = doc.element.body
+        for child in list(body):
+            if child.tag != qn("w:sectPr"):
+                body.remove(child)
 
     # Set standard 1-inch margins
     sections = doc.sections
     for section in sections:
+        if use_template and (_has_content(section.header) or _has_content(section.footer)):
+            continue  # keep the template's own margins, header and footer
         section.top_margin = Inches(1)
         section.bottom_margin = Inches(1)
         section.left_margin = Inches(1)
@@ -53,7 +70,7 @@ def build_docx_deliverable(
         hdr = section.header
         hdr_p = hdr.paragraphs[0]
         hdr_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        hdr_run = hdr_p.add_run(f"{metadata.document_title}  |  AGENT-101")
+        hdr_run = hdr_p.add_run(metadata.document_title)
         hdr_run.font.name = guidance.typography.body_font
         hdr_run.font.size = Pt(8.5)
         hdr_run.font.color.rgb = RGBColor(140, 150, 160)
@@ -62,7 +79,7 @@ def build_docx_deliverable(
         ftr = section.footer
         ftr_p = ftr.paragraphs[0]
         ftr_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        ftr_run1 = ftr_p.add_run("CONFIDENTIAL & PROPRIETARY  •  SYSTEM AGENT-101  •  WCAG 2.2 LEVEL AA")
+        ftr_run1 = ftr_p.add_run(f"Version {metadata.version}  •  {metadata.date}  •  Prepared with AGENT-101")
         ftr_run1.font.name = guidance.typography.body_font
         ftr_run1.font.size = Pt(8)
         ftr_run1.font.color.rgb = RGBColor(150, 160, 170)

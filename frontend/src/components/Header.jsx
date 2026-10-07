@@ -1,4 +1,5 @@
 import Icon from './Icon'
+import ShareButton from './ShareButton'
 
 export default function Header({ health, onHome }) {
   const online = !!health
@@ -25,6 +26,7 @@ export default function Header({ health, onHome }) {
       </button>
 
       <div className="header-right">
+        <ShareButton />
         <div className={`health ${online ? 'ok' : pending ? 'wait' : 'down'}`} role="status">
           <span className="health-dot" />
           {pending && 'Connecting…'}

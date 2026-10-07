@@ -2,6 +2,8 @@ import os
 import uuid
 import asyncio
 import datetime
+import shutil
+import subprocess
 import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -17,6 +19,7 @@ router = APIRouter()
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 TEMPLATES_DIR = ROOT_DIR / "storage" / "templates"
+SOURCES_DIR = ROOT_DIR / "storage" / "sources"
 OUTPUTS_DIR = ROOT_DIR / "storage" / "outputs"
 
 FORMAT_MEDIA_TYPES = {
@@ -35,6 +38,7 @@ def _now() -> str:
 
 _mem_workspaces: Dict[str, Dict[str, Any]] = {}
 _mem_templates: Dict[str, List[Dict[str, Any]]] = {}
+_mem_sources: Dict[str, List[Dict[str, Any]]] = {}
 
 # Live run state per topic (events, refined content, deliverables). Not persisted.
 _runs: Dict[str, Dict[str, Any]] = {}
@@ -42,6 +46,25 @@ _runs: Dict[str, Dict[str, Any]] = {}
 
 def _run(topic_id: str) -> Dict[str, Any]:
     return _runs.setdefault(topic_id, {"events": [], "refined_content": None, "deliverables": []})
+
+
+PERSISTED_RUN_KEYS = ("events", "refined_content", "deliverables", "notes_cache", "revisions", "approved_content", "value")
+
+
+async def _load_run(topic_id: str) -> Dict[str, Any]:
+    """Run state from memory, or restored from the saved workspace after a server restart."""
+    if topic_id not in _runs:
+        ws = await _ws_get(topic_id) or {}
+        _runs[topic_id] = {"events": [], "refined_content": None, "deliverables": [], **(ws.get("run_state") or {})}
+    return _runs[topic_id]
+
+
+async def _persist_run(topic_id: str) -> None:
+    run = _runs.get(topic_id)
+    if run is not None:
+        state = {k: run.get(k) for k in PERSISTED_RUN_KEYS if run.get(k) is not None}
+        state["events"] = (run.get("events") or [])[-80:]
+        await _ws_update(topic_id, {"run_state": state})
 
 
 async def _ws_insert(doc: Dict[str, Any]) -> None:
@@ -82,8 +105,12 @@ async def _ws_delete(topic_id: str) -> None:
     if db is not None:
         await db.topic_workspaces.delete_one({"_id": topic_id})
         await db.reference_templates.delete_many({"topic_id": topic_id})
+        await db.source_documents.delete_many({"topic_id": topic_id})
+    from app.services.vector_service import vector_service
+    vector_service._in_memory_store.pop(topic_id, None)
     _mem_workspaces.pop(topic_id, None)
     _mem_templates.pop(topic_id, None)
+    _mem_sources.pop(topic_id, None)
     _runs.pop(topic_id, None)
 
 
@@ -104,6 +131,47 @@ async def _tpl_list(topic_id: str) -> List[Dict[str, Any]]:
     return [_serialize(d) for d in docs]
 
 
+async def _src_insert(doc: Dict[str, Any]) -> None:
+    db = get_database()
+    if db is not None:
+        await db.source_documents.insert_one(doc)
+    else:
+        _mem_sources.setdefault(doc["topic_id"], []).append(doc)
+
+
+async def _src_list(topic_id: str) -> List[Dict[str, Any]]:
+    db = get_database()
+    if db is not None:
+        docs = await db.source_documents.find({"topic_id": topic_id}).sort("created_at", 1).to_list(length=50)
+    else:
+        docs = list(_mem_sources.get(topic_id, []))
+    return [_serialize(d) for d in docs]
+
+
+async def _src_delete(topic_id: str, source_id: str) -> Optional[Dict[str, Any]]:
+    docs = {d["id"]: d for d in await _src_list(topic_id)}
+    doc = docs.get(source_id)
+    db = get_database()
+    if db is not None:
+        await db.source_documents.delete_one({"_id": source_id})
+    else:
+        _mem_sources[topic_id] = [d for d in _mem_sources.get(topic_id, []) if d["_id"] != source_id]
+    return doc
+
+
+async def _ensure_sources_indexed(topic_id: str) -> int:
+    """Re-index a topic's uploaded sources after a restart (the passage index lives in memory)."""
+    from app.services.vector_service import vector_service
+    from app.services.source_ingest import extract_passages
+    sources = await _src_list(topic_id)
+    if sources and not vector_service.has_sources(topic_id):
+        for src in sources:
+            if os.path.exists(src["storage_path"]):
+                passages = await asyncio.to_thread(extract_passages, src["storage_path"], src["file_name"])
+                vector_service.seed_topic_knowledge(topic_id, passages)
+    return len(sources)
+
+
 def _serialize(doc: Dict[str, Any]) -> Dict[str, Any]:
     out = {k: v for k, v in doc.items() if k != "_id"}
     out["id"] = doc["_id"]
@@ -120,10 +188,17 @@ class WorkspaceCreate(BaseModel):
     description: str
     target_format: str
     user_instructions: Optional[str] = None
+    language: str = "English"
 
 
 class ApproveRequest(BaseModel):
     content_markdown: Optional[str] = None
+
+
+class ReviseRequest(BaseModel):
+    content_markdown: str
+    instruction: str
+    section: Optional[str] = None  # a "## " heading; None revises the whole document
 
 
 @router.post("")
@@ -135,6 +210,7 @@ async def create_workspace(workspace: WorkspaceCreate):
         "description": workspace.description,
         "target_format": workspace.target_format.upper(),
         "user_instructions": workspace.user_instructions,
+        "language": workspace.language or "English",
         "status": "CREATED",
         "created_at": _now(),
         "updated_at": _now(),
@@ -191,12 +267,76 @@ async def list_templates(topic_id: str):
     return await _tpl_list(topic_id)
 
 
+# ─── Source documents (the topic's own knowledge base) ──────────────────────────
+
+@router.post("/{topic_id}/sources")
+async def upload_source(topic_id: str, file: UploadFile = File(...)):
+    from app.services.vector_service import vector_service
+    from app.services.source_ingest import extract_passages, SUPPORTED_SOURCE_TYPES
+    file_name = os.path.basename(file.filename or "source")
+    if os.path.splitext(file_name)[1].lower() not in SUPPORTED_SOURCE_TYPES:
+        raise HTTPException(status_code=415, detail="Sources must be PDF, DOCX, TXT or MD files.")
+    topic_dir = SOURCES_DIR / topic_id
+    topic_dir.mkdir(parents=True, exist_ok=True)
+    path = topic_dir / file_name
+    path.write_bytes(await file.read())
+    try:
+        passages = await asyncio.to_thread(extract_passages, str(path), file_name)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Could not read {file_name}: {e}")
+    if not passages:
+        raise HTTPException(status_code=422, detail=f"No readable text found in {file_name} (scanned PDFs need OCR first).")
+    await _ensure_sources_indexed(topic_id)
+    vector_service.remove_source(topic_id, file_name)
+    vector_service.seed_topic_knowledge(topic_id, passages)
+    doc = {
+        "_id": str(uuid.uuid4()),
+        "topic_id": topic_id,
+        "file_name": file_name,
+        "file_type": file_name.rsplit(".", 1)[-1].upper(),
+        "storage_path": str(path),
+        "file_size_bytes": path.stat().st_size,
+        "passages": len(passages),
+        "locations": len({p["label"] for p in passages}),
+        "created_at": _now(),
+    }
+    await _src_insert(doc)
+    return _serialize(doc)
+
+
+@router.get("/{topic_id}/sources")
+async def list_sources(topic_id: str):
+    return await _src_list(topic_id)
+
+
+@router.delete("/{topic_id}/sources/{source_id}")
+async def delete_source(topic_id: str, source_id: str):
+    from app.services.vector_service import vector_service
+    doc = await _src_delete(topic_id, source_id)
+    if doc:
+        vector_service.remove_source(topic_id, doc["file_name"])
+    return {"deleted": source_id}
+
+
 # ─── Pipeline (cognitive agents, streamed) ──────────────────────────────────────
 
 @router.post("/{topic_id}/generate")
 async def generate_document(topic_id: str):
     await _ws_update(topic_id, {"status": "PROCESSING"})
     return {"task_id": f"job-{topic_id}", "status": "PROCESSING"}
+
+
+@router.get("/stats/summary")
+async def stats_summary():
+    """Totals across all workspaces for the value meter on the home page."""
+    runs = [w.get("value") for w in await _ws_all() if w.get("value")]
+    return {
+        "documents": len(runs),
+        "manual_minutes_saved": round(sum(max(0.0, v["manual_minutes"] - v["seconds"] / 60) for v in runs)),
+        "cost_usd": round(sum(v["cost_usd"] for v in runs), 4),
+        "cost_inr": round(sum(v["cost_inr"] for v in runs), 2),
+        "avg_seconds": round(sum(v["seconds"] for v in runs) / len(runs), 1) if runs else 0,
+    }
 
 
 @router.get("/{topic_id}/status")
@@ -209,7 +349,7 @@ async def get_status(topic_id: str):
 async def get_run(topic_id: str):
     """Full run snapshot so the UI can restore a workspace when switching tabs."""
     ws = await _ws_get(topic_id)
-    run = _runs.get(topic_id, {"events": [], "refined_content": None, "deliverables": []})
+    run = await _load_run(topic_id)
     return {
         "status": ws.get("status", "IDLE") if ws else "UNKNOWN",
         "events": run["events"],
@@ -228,6 +368,7 @@ async def websocket_endpoint(websocket: WebSocket, topic_id: str):
 
     run = _run(topic_id)
     run.update({"events": [], "refined_content": None})
+    await _ensure_sources_indexed(topic_id)
     await _ws_update(topic_id, {"status": "PROCESSING"})
 
     try:
@@ -237,15 +378,19 @@ async def websocket_endpoint(websocket: WebSocket, topic_id: str):
             description=ws.get("description", ""),
             target_format=ws.get("target_format", "DOCX"),
             user_instructions=ws.get("user_instructions"),
+            language=ws.get("language") or "English",
             template_file_path=template_file_path,
         ):
             data = event.model_dump()
             if event.agent_name == "Content Review Agent" and event.status == "WAITING_FOR_REVIEW":
                 run["refined_content"] = event.payload.get("refined_content", "")
+                run["value"] = event.payload.get("value")
             run["events"].append(data)
             await websocket.send_json(data)
 
-        await _ws_update(topic_id, {"status": "WAITING_FOR_REVIEW"})
+        # Persist the run's measured value so dashboard totals survive restarts.
+        await _ws_update(topic_id, {"status": "WAITING_FOR_REVIEW", "value": run.get("value")})
+        await _persist_run(topic_id)
         await websocket.close()
 
     except WebSocketDisconnect:
@@ -264,20 +409,15 @@ async def websocket_endpoint(websocket: WebSocket, topic_id: str):
 
 @router.get("/{topic_id}/content")
 async def get_refined_content(topic_id: str):
-    run = _runs.get(topic_id)
-    if not run or not run.get("refined_content"):
+    run = await _load_run(topic_id)
+    if not run.get("refined_content"):
         raise HTTPException(status_code=404, detail="No refined content yet. Run the pipeline first.")
     return {"refined_content": run["refined_content"]}
 
 
-# ─── Human-in-the-loop approval → document compilation ──────────────────────────
+# ─── Document compilation (shared by preview and approval) ──────────────────────
 
-@router.post("/{topic_id}/approve")
-async def approve_and_compile(topic_id: str, body: ApproveRequest):
-    from app.agents.document.reference_agent import ReferenceAnalysisAgent
-    from app.agents.document.format_agent import FormatGenerationAgent
-    from app.shared.schemas.template_models import DocumentCompileRequest
-
+async def _load_for_compile(topic_id: str, content_markdown: Optional[str]):
     ws = await _ws_get(topic_id)
     if not ws:
         raise HTTPException(
@@ -285,16 +425,29 @@ async def approve_and_compile(topic_id: str, body: ApproveRequest):
             detail="This topic no longer exists on the server (it was probably restarted). "
                    "Refresh the page, create the topic again and relaunch.",
         )
-
-    run = _run(topic_id)
-    content = body.content_markdown or run.get("refined_content")
+    run = await _load_run(topic_id)
+    content = content_markdown or run.get("refined_content")
     if not content:
         raise HTTPException(status_code=409, detail="Nothing to compile. Run the pipeline first.")
     run["refined_content"] = content
-
     templates = await _tpl_list(topic_id)
-    template_file_path = templates[-1]["storage_path"] if templates else None
-    await _ws_update(topic_id, {"status": "COMPILING"})
+    return ws, run, content, (templates[-1]["storage_path"] if templates else None)
+
+
+async def _compile(topic_id: str, ws: Dict[str, Any], content: str, template_file_path: Optional[str], output_dir: Path,
+                   version: str = "1.0"):
+    """Compile the markdown into the workspace's target format. Raises HTTPException with the real cause on failure."""
+    from app.agents.document.reference_agent import ReferenceAnalysisAgent
+    from app.agents.document.format_agent import FormatGenerationAgent
+    from app.shared.schemas.template_models import DocumentCompileRequest, DocumentControlMetadata
+
+    speaker_notes = None
+    if ws["target_format"] == "PPT":
+        from app.agents.cognitive.notes_agent import notes_agent
+        try:
+            speaker_notes = await asyncio.to_thread(notes_agent.notes_for, content, _run(topic_id).setdefault("notes_cache", {}))
+        except Exception as e:
+            print(f"[Compile] Speaker notes skipped ({e}).", flush=True)
 
     def compile_sync():
         analyzer = ReferenceAnalysisAgent()
@@ -302,7 +455,7 @@ async def approve_and_compile(topic_id: str, body: ApproveRequest):
             guidance = analyzer.analyze_template(template_file_path)
         except Exception as e:
             # A template that can't be parsed should not block delivery; use the default theme.
-            print(f"[Approve] Template analysis failed ({e}); using default theme.", flush=True)
+            print(f"[Compile] Template analysis failed ({e}); using default theme.", flush=True)
             guidance = analyzer.analyze_template(None)
         request = DocumentCompileRequest(
             topic_id=topic_id,
@@ -310,7 +463,9 @@ async def approve_and_compile(topic_id: str, body: ApproveRequest):
             target_format=ws["target_format"],
             refined_content_markdown=content,
             template_guidance=guidance,
-            output_directory=str(OUTPUTS_DIR / topic_id),
+            output_directory=str(output_dir),
+            speaker_notes=speaker_notes,
+            document_control_metadata=DocumentControlMetadata(version=version),
         )
         return FormatGenerationAgent().compile_document(request)
 
@@ -318,23 +473,145 @@ async def approve_and_compile(topic_id: str, body: ApproveRequest):
         result = await asyncio.to_thread(compile_sync)
     except Exception as e:
         traceback.print_exc()
-        result = None
-        error = f"{type(e).__name__}: {e}"
-    else:
-        error = None if result.success else (result.error_message or "Compilation failed.")
+        raise HTTPException(status_code=500, detail=f"Document compilation failed — {type(e).__name__}: {e}")
+    if not result.success:
+        raise HTTPException(status_code=500, detail=f"Document compilation failed — {result.error_message or 'unknown error'}")
+    return result
 
-    if error:
-        # Keep the reviewed draft so the user can fix it and approve again.
-        await _ws_update(topic_id, {"status": "WAITING_FOR_REVIEW"})
-        raise HTTPException(status_code=500, detail=f"Document compilation failed — {error}")
 
-    page_count = result.page_or_slide_count
+def _notes_count(result) -> int:
+    if result.format != "PPT":
+        return 0
+    try:
+        from pptx import Presentation
+        return sum(1 for s in Presentation(result.file_path).slides
+                   if s.has_notes_slide and s.notes_slide.notes_text_frame.text.strip())
+    except Exception:
+        return 0
+
+
+def _slide_count(result) -> int:
     if result.format == "PPT":
         try:
             from pptx import Presentation
-            page_count = len(Presentation(result.file_path).slides)
+            return len(Presentation(result.file_path).slides)
         except Exception:
             pass
+    return result.page_or_slide_count
+
+
+def _find_soffice() -> Optional[str]:
+    """LibreOffice gives pixel-accurate previews of PPTX/DOCX by converting them to PDF; optional."""
+    candidates = [
+        shutil.which("soffice"), shutil.which("libreoffice"),
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+    ]
+    return next((c for c in candidates if c and os.path.exists(c)), None)
+
+
+def _convert_to_pdf(path: Path) -> Optional[Path]:
+    soffice = _find_soffice()
+    if not soffice:
+        return None
+    try:
+        subprocess.run(
+            [soffice, "--headless", "--convert-to", "pdf", "--outdir", str(path.parent), str(path)],
+            check=True, capture_output=True, timeout=120,
+        )
+        pdf = path.with_suffix(".pdf")
+        return pdf if pdf.exists() else None
+    except Exception as e:
+        print(f"[Preview] LibreOffice conversion failed ({e}); falling back to in-browser rendering.", flush=True)
+        return None
+
+
+# ─── Ask AI to revise (whole document or one section) ───────────────────────────
+
+@router.post("/{topic_id}/revise")
+async def revise_content(topic_id: str, body: ReviseRequest):
+    from app.agents.cognitive.revision_agent import revision_agent
+    if not body.instruction.strip():
+        raise HTTPException(status_code=422, detail="Tell the AI what to change.")
+    try:
+        revised, summary = await asyncio.to_thread(
+            revision_agent.run, body.content_markdown, body.instruction.strip(), body.section
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    run = await _load_run(topic_id)
+    run["refined_content"] = revised
+    run.setdefault("revisions", []).append({"instruction": body.instruction.strip(), "section": body.section, "at": _now()})
+    await _persist_run(topic_id)
+    return {"content_markdown": revised, "summary": summary}
+
+
+# ─── Format-specific preview of the reviewed draft ──────────────────────────────
+
+@router.post("/{topic_id}/preview")
+async def build_preview(topic_id: str, body: ApproveRequest):
+    """Compile the draft into the chosen format so the user reviews the real output before approving."""
+    ws, run, content, template_file_path = await _load_for_compile(topic_id, body.content_markdown)
+    preview_dir = OUTPUTS_DIR / topic_id / "preview"
+    if preview_dir.exists():
+        shutil.rmtree(preview_dir, ignore_errors=True)
+    preview_dir.mkdir(parents=True, exist_ok=True)
+
+    result = await _compile(topic_id, ws, content, template_file_path, preview_dir,
+                            version=f"{len(run.get('deliverables') or []) + 1}.0")
+    compiled = Path(result.file_path)
+    base_url = f"/api/v1/workspaces/{topic_id}/preview-file"
+
+    pdf = compiled if result.format == "PDF" else None
+    if result.format in ("PPT", "DOCX"):
+        pdf = await asyncio.to_thread(_convert_to_pdf, compiled)
+
+    renderer = "pdf" if pdf else {"PPT": "pptx", "DOCX": "docx", "MD": "markdown"}.get(result.format, "markdown")
+    return {
+        "format": result.format,
+        "renderer": renderer,
+        "file_name": result.file_name,
+        "file_url": f"{base_url}?file={compiled.name}",
+        "pdf_url": f"{base_url}?file={pdf.name}" if pdf else None,
+        "page_or_slide_count": _slide_count(result),
+        "notes_count": _notes_count(result),
+        "content_markdown": content,
+        "built_at": _now(),
+    }
+
+
+@router.get("/{topic_id}/preview-file")
+async def preview_file(topic_id: str, file: str):
+    target = OUTPUTS_DIR / topic_id / "preview" / os.path.basename(file)
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="Preview not found. Build the preview again.")
+    return FileResponse(
+        target,
+        media_type=FORMAT_MEDIA_TYPES.get(target.suffix.lower(), "application/octet-stream"),
+        content_disposition_type="inline",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+# ─── Human-in-the-loop approval → final document ────────────────────────────────
+
+@router.post("/{topic_id}/approve")
+async def approve_and_compile(topic_id: str, body: ApproveRequest):
+    ws, run, content, template_file_path = await _load_for_compile(topic_id, body.content_markdown)
+    await _ws_update(topic_id, {"status": "COMPILING"})
+    previous = run["deliverables"][-1] if run["deliverables"] else None
+    version = f"{len(run['deliverables']) + 1}.0"
+    try:
+        result = await _compile(topic_id, ws, content, template_file_path, OUTPUTS_DIR / topic_id, version=version)
+    except HTTPException:
+        # Keep the reviewed draft so the user can fix it and approve again.
+        await _ws_update(topic_id, {"status": "WAITING_FOR_REVIEW"})
+        raise
+
+    page_count = _slide_count(result)
 
     deliverable = {
         "file_name": result.file_name,
@@ -345,19 +622,36 @@ async def approve_and_compile(topic_id: str, body: ApproveRequest):
         "accessibility_report": result.accessibility_report.model_dump() if result.accessibility_report else None,
         "download_url": f"/api/v1/workspaces/{topic_id}/export?file={result.file_name}",
         "compiled_at": _now(),
+        "version": version,
+        "change_note": _change_note(run, previous, content),
     }
+    run["approved_content"] = content
     run["deliverables"] = [d for d in run["deliverables"] if d["file_name"] != result.file_name] + [deliverable]
     run["events"].append({
         "topic_id": topic_id,
         "agent_name": "Format Generation Agent",
         "status": "COMPLETED",
         "progress_percent": 100,
-        "message": f"Compiled {result.file_name} — WCAG 2.2 AA {'passed' if result.wcag_compliant else 'needs attention'}.",
+        "message": f"Compiled {result.file_name} — accessibility checks {'passed' if result.wcag_compliant else 'need attention'}.",
         "payload": deliverable,
         "timestamp": _now(),
     })
     await _ws_update(topic_id, {"status": "COMPLETED"})
+    await _persist_run(topic_id)
     return deliverable
+
+
+def _change_note(run: Dict[str, Any], previous: Optional[Dict[str, Any]], content: str) -> str:
+    """What changed since the previous approved version, in plain words."""
+    if previous is None:
+        return "First approved version"
+    since = previous.get("compiled_at", "")
+    revisions = [r["instruction"] for r in run.get("revisions", []) if r.get("at", "") > since]
+    if revisions:
+        return "AI revisions: " + "; ".join(revisions[-3:])
+    if content != run.get("approved_content"):
+        return "Manual edits to the content"
+    return "Recompiled without content changes"
 
 
 @router.get("/{topic_id}/deliverables")

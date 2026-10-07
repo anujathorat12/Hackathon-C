@@ -12,9 +12,13 @@ export default function App() {
   const [health, setHealth] = useState(undefined)
   const [loaded, setLoaded] = useState(false)
   const [draft, setDraft] = useState(null) // modal initial values; null = closed
+  const [stats, setStats] = useState(null)
+
+  const refreshStats = useCallback(() => { api.stats().then(setStats).catch(() => {}) }, [])
 
   useEffect(() => {
     api.health().then(setHealth).catch(() => setHealth(null))
+    refreshStats()
     api.list()
       .then((list) => {
         setWorkspaces(list)
@@ -39,6 +43,7 @@ export default function App() {
 
   const deleteWorkspace = async (id) => {
     await api.remove(id)
+    refreshStats()
     setWorkspaces((list) => {
       const next = list.filter((w) => w.id !== id)
       if (id === activeId) setActiveId(next.length ? next[next.length - 1].id : null)
@@ -48,7 +53,8 @@ export default function App() {
 
   const setStatus = useCallback((id, status) => {
     setWorkspaces((list) => list.map((w) => (w.id === id ? { ...w, status } : w)))
-  }, [])
+    if (status === 'WAITING_FOR_REVIEW') refreshStats()
+  }, [refreshStats])
 
   const active = workspaces.find((w) => w.id === activeId)
 
@@ -70,12 +76,13 @@ export default function App() {
           onSelect={setActiveId}
           onNew={() => setDraft({})}
           onDelete={deleteWorkspace}
+          stats={stats}
         />
         <main className="main" id="main">
           {active ? (
             <Workspace key={active.id} ws={active} onStatus={setStatus} />
           ) : (
-            loaded && <EmptyState offline={health === null} onPreset={(p) => setDraft(p)} onNew={() => setDraft({})} />
+            loaded && <EmptyState stats={stats} offline={health === null} onPreset={(p) => setDraft(p)} onNew={() => setDraft({})} />
           )}
         </main>
       </div>

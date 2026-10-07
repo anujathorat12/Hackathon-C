@@ -21,8 +21,7 @@ title: "{metadata.document_title}"
 deliverable_id: "{metadata.file_name}"
 version: "{metadata.version}"
 date: "{metadata.date}"
-system: "{metadata.author}"
-accessibility: "WCAG 2.2 Level AA"
+prepared_by: "{metadata.author}"
 ---
 
 """

@@ -43,7 +43,8 @@ class FormatGenerationAgent:
             "MD": "md"
         }
         file_ext = ext_map.get(fmt, "docx")
-        file_name = f"{clean_title}_SystemDeliverable_v1.0.{file_ext}"
+        version = (request.document_control_metadata.version if request.document_control_metadata else None) or "1.0"
+        file_name = f"{clean_title}_v{version}.{file_ext}"
 
         output_dir = request.output_directory or "storage/outputs"
         os.makedirs(output_dir, exist_ok=True)
@@ -75,7 +76,8 @@ class FormatGenerationAgent:
                     request.refined_content_markdown,
                     target_path,
                     metadata=metadata,
-                    guidance=guidance
+                    guidance=guidance,
+                    speaker_notes=request.speaker_notes
                 )
             elif fmt == "PDF":
                 out_file = build_pdf_deliverable(

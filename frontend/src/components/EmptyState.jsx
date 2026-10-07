@@ -1,17 +1,18 @@
 import Icon from './Icon'
 import { AGENTS, FORMATS, PRESETS } from '../constants'
+import { ValueTotals } from './ValueMeter'
 
-export default function EmptyState({ onPreset, onNew, offline }) {
+export default function EmptyState({ onPreset, onNew, offline, stats }) {
   return (
     <section className="hero">
       <div className="hero-copy">
-        <span className="eyebrow"><Icon name="spark" size={14} /> 7 autonomous agents · human-approved · WCAG 2.2 AA</span>
+        <span className="eyebrow"><Icon name="spark" size={14} /> 7 autonomous agents · human-approved · accessibility-checked</span>
         <h1>
           From a one-line brief to a <span className="grad-text">boardroom-ready</span> document.
         </h1>
         <p className="lede">
           AGENT-101 plans, researches, writes, reviews and compiles native PowerPoint, Word, PDF and Markdown
-          deliverables that match your brand template and pass a WCAG 2.2 AA audit. You review and approve before anything is compiled.
+          deliverables that match your brand template, with automated accessibility checks. You review and approve before anything is compiled.
         </p>
         <div className="hero-actions">
           <button className="btn btn-primary btn-lg" onClick={onNew}>
@@ -19,6 +20,7 @@ export default function EmptyState({ onPreset, onNew, offline }) {
           </button>
           <span className="hero-note">or launch a ready-made demo brief ↓</span>
         </div>
+        <ValueTotals stats={stats} />
         {offline && (
           <div className="banner banner-warn" role="alert">
             <Icon name="alert" /> Can’t reach the API. Start the backend with <code>uvicorn app.main:app --port 8000</code> from <code>backend/</code>.

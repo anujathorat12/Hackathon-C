@@ -1,6 +1,6 @@
 import os
 import re
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE
@@ -39,7 +39,8 @@ def build_pptx_deliverable(
     markdown_content: str,
     output_path: str,
     metadata: Optional[DocumentControlMetadata] = None,
-    guidance: Optional[TemplateGuidanceProfile] = None
+    guidance: Optional[TemplateGuidanceProfile] = None,
+    speaker_notes: Optional[Dict[str, str]] = None
 ) -> str:
     """
     Compiles refined markdown into an elite, publication-ready PowerPoint presentation.
@@ -56,6 +57,16 @@ def build_pptx_deliverable(
         guidance = DEFAULT_CORPORATE_THEME
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+
+    # Brand-faithful path: build inside the uploaded template's own layouts when it has usable ones.
+    template_path = guidance.source_file_path
+    if template_path and template_path.lower().endswith(".pptx") and os.path.exists(template_path):
+        from .template_deck_builder import build_deck_in_template
+        try:
+            if build_deck_in_template(markdown_content, output_path, metadata, guidance, template_path, speaker_notes):
+                return output_path
+        except Exception as e:
+            print(f"[PPTX Builder] Template build failed ({e}); using the built-in design.")
 
     prs = Presentation()
     prs.slide_width = Inches(13.33)
@@ -120,7 +131,7 @@ def build_pptx_deliverable(
     b_tf.word_wrap = False
     bp = b_tf.paragraphs[0]
     bp.alignment = PP_ALIGN.CENTER
-    apply_text_styling(bp, "SYSTEM DELIVERABLE • AGENT-101", font_name=font_heading, font_size_pt=10, color_hex=accent_hex, bold=True)
+    apply_text_styling(bp, f"PRESENTATION  •  {metadata.date}".upper(), font_name=font_heading, font_size_pt=10, color_hex=accent_hex, bold=True)
 
     # 4. Main Cover Title
     title_text = metadata.document_title
@@ -139,30 +150,46 @@ def build_pptx_deliverable(
     s_tf = sub_box.text_frame
     s_tf.word_wrap = True
     sp = s_tf.paragraphs[0]
-    sub_content = "Autonomous Multi-Agent AI Content Generation & Synthesis System\nStrict Topic Isolation • Native Binary Architecture • WCAG 2.2 Level AA"
+    sub_content = metadata.author
     apply_text_styling(sp, sub_content, font_name=font_body, font_size_pt=15, color_hex="#8892B0", bold=False)
 
     # 6. Bottom Metadata Strip
     meta_box = slide1.shapes.add_textbox(Inches(1.2), Inches(6.2), Inches(11.0), Inches(0.6))
     m_tf = meta_box.text_frame
     mp = m_tf.paragraphs[0]
-    meta_text = f"VERSION {metadata.version}   |   DATE: {metadata.date}   |   AUTHOR: {metadata.author}"
+    meta_text = f"Version {metadata.version}   |   {metadata.date}"
     apply_text_styling(mp, meta_text, font_name=font_body, font_size_pt=10, color_hex="#64FFDA", bold=True)
+
+    # Determine dark vs light mode for content canvas
+    bg_hex = guidance.color_palette.background_hex or "#FBFDFF"
+    bg_clean = bg_hex.lstrip('#')
+    is_dark_deck = False
+    if len(bg_clean) == 6:
+        r_b, g_b, b_b = int(bg_clean[:2], 16), int(bg_clean[2:4], 16), int(bg_clean[4:6], 16)
+        if (0.2126 * r_b + 0.7152 * g_b + 0.0722 * b_b) < 130:
+            is_dark_deck = True
+
+    canvas_bg_hex = bg_hex if is_dark_deck else "#FBFDFF"
+    text_color_hex = "#FFFFFF" if is_dark_deck else "#2D3748"
+    card_bg_hex = "#252530" if is_dark_deck else "#FFFFFF"
+    card_border_hex = "#3F3F52" if is_dark_deck else "#EDF2F7"
+    header_color_hex = "#FFFFFF" if is_dark_deck else primary_hex
 
     # =========================================================================
     # BODY SLIDES (SLIDES 2+): KPI STAT CARDS & STRUCTURED CONTENT
     # =========================================================================
     for slide_idx, chunk in enumerate(slide_chunks[1:], start=2):
-        lines = [l.strip() for l in chunk.split('\n') if l.strip()]
+        # Horizontal rules ("---") are section separators in markdown, not slide content.
+        lines = [l.strip() for l in chunk.split('\n') if l.strip() and l.strip() not in ("---", "***", "___")]
         if not lines:
             continue
 
         slide = prs.slides.add_slide(blank_layout)
 
-        # 1. Clean Off-White Canvas
+        # 1. Canvas Background (Adaptive Dark/Light)
         canvas = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.33), Inches(7.5))
         canvas.fill.solid()
-        canvas.fill.fore_color.rgb = pptx_hex_to_rgb("#FBFDFF")
+        canvas.fill.fore_color.rgb = pptx_hex_to_rgb(canvas_bg_hex)
         canvas.line.fill.background()
 
         # 2. Extract Slide Title
@@ -179,12 +206,16 @@ def build_pptx_deliverable(
             elif not line.startswith('|'):
                 content_lines.append(line)
 
+        note = (speaker_notes or {}).get(slide_title)
+        if note:
+            slide.notes_slide.notes_text_frame.text = note
+
         # 3. Slide Header Title
         title_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.5), Inches(11.5), Inches(0.9))
         t_tf = title_box.text_frame
         t_tf.word_wrap = True
         tp = t_tf.paragraphs[0]
-        apply_text_styling(tp, slide_title, font_name=font_heading, font_size_pt=26, color_hex=primary_hex, bold=True)
+        apply_text_styling(tp, slide_title, font_name=font_heading, font_size_pt=26, color_hex=header_color_hex, bold=True)
 
         # Accent Underline Bar
         bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(1.35), Inches(2.5), Inches(0.06))
@@ -216,8 +247,8 @@ def build_pptx_deliverable(
                 # Card Shape
                 card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left_pos), Inches(top_pos), Inches(card_w), Inches(card_h))
                 card.fill.solid()
-                card.fill.fore_color.rgb = pptx_hex_to_rgb("#FFFFFF")
-                card.line.color.rgb = pptx_hex_to_rgb("#E2E8F0")
+                card.fill.fore_color.rgb = pptx_hex_to_rgb(card_bg_hex)
+                card.line.color.rgb = pptx_hex_to_rgb(card_border_hex)
                 card.line.width = Pt(1.5)
 
                 # Top colored pill inside card
@@ -235,18 +266,18 @@ def build_pptx_deliverable(
 
                 # Metric Title
                 p1 = ctf.paragraphs[0]
-                apply_text_styling(p1, s_title.upper(), font_name=font_heading, font_size_pt=11, color_hex=secondary_hex, bold=True)
+                apply_text_styling(p1, s_title.upper(), font_name=font_heading, font_size_pt=11, color_hex=accent_hex if is_dark_deck else secondary_hex, bold=True)
                 p1.space_after = Pt(14)
 
                 # Big Number Callout
                 p2 = ctf.add_paragraph()
-                apply_text_styling(p2, s_num, font_name=font_heading, font_size_pt=32, color_hex=primary_hex, bold=True)
+                apply_text_styling(p2, s_num, font_name=font_heading, font_size_pt=32, color_hex=header_color_hex, bold=True)
                 p2.space_after = Pt(14)
 
                 # Description
                 if s_desc:
                     p3 = ctf.add_paragraph()
-                    apply_text_styling(p3, s_desc, font_name=font_body, font_size_pt=11.5, color_hex="#555555")
+                    apply_text_styling(p3, s_desc, font_name=font_body, font_size_pt=11.5, color_hex="#A0AEC0" if is_dark_deck else "#555555")
 
         else:
             # Standard Structured Content: Render as Card List
@@ -266,8 +297,8 @@ def build_pptx_deliverable(
                 # Item Card
                 row_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(card_top), Inches(11.73), Inches(item_h))
                 row_card.fill.solid()
-                row_card.fill.fore_color.rgb = pptx_hex_to_rgb("#FFFFFF")
-                row_card.line.color.rgb = pptx_hex_to_rgb("#EDF2F7")
+                row_card.fill.fore_color.rgb = pptx_hex_to_rgb(card_bg_hex)
+                row_card.line.color.rgb = pptx_hex_to_rgb(card_border_hex)
                 row_card.line.width = Pt(1)
 
                 # Left Indicator Dot / Accent
@@ -283,22 +314,22 @@ def build_pptx_deliverable(
                 rc_tf.margin_top = Inches(0.15)
                 rc_tf.margin_right = Inches(0.3)
                 rp = rc_tf.paragraphs[0]
-                apply_text_styling(rp, clean_text, font_name=font_body, font_size_pt=14, color_hex="#2D3748")
+                apply_text_styling(rp, clean_text, font_name=font_body, font_size_pt=14, color_hex=text_color_hex)
 
         # 5. Running Footer on Slide (Pages 2+)
         footer_line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(6.8), Inches(11.73), Inches(0.02))
         footer_line.fill.solid()
-        footer_line.fill.fore_color.rgb = pptx_hex_to_rgb("#E2E8F0")
+        footer_line.fill.fore_color.rgb = accent_rgb if is_dark_deck else pptx_hex_to_rgb("#E2E8F0")
         footer_line.line.fill.background()
 
         footer_box = slide.shapes.add_textbox(Inches(0.8), Inches(6.88), Inches(8.0), Inches(0.4))
         ftp = footer_box.text_frame.paragraphs[0]
-        apply_text_styling(ftp, "AGENT-101 • Multi-Agent Autonomous Content Synthesis System", font_name=font_body, font_size_pt=9, color_hex="#A0AEC0")
+        apply_text_styling(ftp, metadata.document_title, font_name=font_body, font_size_pt=9, color_hex="#818CF8" if is_dark_deck else "#A0AEC0")
 
         num_box = slide.shapes.add_textbox(Inches(10.5), Inches(6.88), Inches(2.0), Inches(0.4))
         np = num_box.text_frame.paragraphs[0]
         np.alignment = PP_ALIGN.RIGHT
-        apply_text_styling(np, f"SLIDE {slide_idx}", font_name=font_body, font_size_pt=9, color_hex="#A0AEC0", bold=True)
+        apply_text_styling(np, f"SLIDE {slide_idx}", font_name=font_body, font_size_pt=9, color_hex="#818CF8" if is_dark_deck else "#A0AEC0", bold=True)
 
     prs.save(output_path)
     print(f"[PPTX Builder] Successfully generated presentation: {output_path}")

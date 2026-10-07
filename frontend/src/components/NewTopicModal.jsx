@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import Icon from './Icon'
-import { FORMATS, formatBytes } from '../constants'
+import { FORMATS, LANGUAGES, formatBytes } from '../constants'
 
 const TEMPLATE_TYPES = ['.pptx', '.docx', '.pdf', '.md']
+const SOURCE_TYPES = ['.pdf', '.docx', '.txt', '.md']
 
 export default function NewTopicModal({ initial, onClose, onCreate, onCreated }) {
   const [form, setForm] = useState({
@@ -11,8 +12,11 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
     description: initial.description || '',
     target_format: initial.target_format || 'DOCX',
     user_instructions: initial.user_instructions || '',
+    language: initial.language || 'English',
   })
   const [template, setTemplate] = useState(null)
+  const [sources, setSources] = useState([])
+  const [srcDrag, setSrcDrag] = useState(false)
   const [drag, setDrag] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -20,6 +24,7 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
   const [createdId, setCreatedId] = useState(null)
   const titleRef = useRef(null)
   const fileRef = useRef(null)
+  const srcRef = useRef(null)
 
   // Focus the title once when the dialog opens (not on every re-render, which would steal focus while typing).
   useEffect(() => {
@@ -35,6 +40,13 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
   const close = () => (createdId ? onCreated(createdId) : onClose())
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value })
+  const complexScript = LANGUAGES.find((l) => l.value === form.language)?.complex
+
+  const setLanguage = (e) => {
+    const language = e.target.value
+    const complex = LANGUAGES.find((l) => l.value === language)?.complex
+    setForm({ ...form, language, target_format: complex && form.target_format === 'PDF' ? 'DOCX' : form.target_format })
+  }
 
   const pickTemplate = (file) => {
     if (!file) return
@@ -47,6 +59,14 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
     setTemplate(file)
   }
 
+  const addSources = (fileList) => {
+    const files = [...(fileList || [])]
+    const bad = files.filter((f) => !SOURCE_TYPES.includes('.' + f.name.split('.').pop().toLowerCase()))
+    if (bad.length) setError(`Skipped ${bad.map((f) => f.name).join(', ')} — sources must be PDF, DOCX, TXT or MD.`)
+    const good = files.filter((f) => !bad.includes(f))
+    setSources((list) => [...list, ...good.filter((f) => !list.some((x) => x.name === f.name))].slice(0, 10))
+  }
+
   const submit = async (e) => {
     e.preventDefault()
     setBusy(true)
@@ -57,7 +77,25 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
         id = await onCreate(form)
         setCreatedId(id)
       }
-      if (template) await api.upload(id, template)
+      if (template) {
+        await api.upload(id, template)
+        setTemplate(null)
+      }
+      // Upload sources one by one; keep any that fail in the list so they can be retried.
+      const failed = []
+      for (const file of sources) {
+        try {
+          await api.uploadSource(id, file)
+        } catch (err) {
+          failed.push({ file, message: err.message })
+        }
+      }
+      setSources(failed.map((f) => f.file))
+      if (failed.length) {
+        setError(`Topic created, but some sources couldn't be read: ${failed.map((f) => `${f.file.name} (${f.message})`).join('; ')}`)
+        setBusy(false)
+        return
+      }
       onCreated(id)
     } catch (err) {
       setError(id
@@ -68,8 +106,8 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
   }
 
   const submitLabel = busy
-    ? (createdId || !template ? 'Creating…' : 'Creating & analysing template…')
-    : createdId ? 'Retry template upload' : 'Create workspace'
+    ? (sources.length ? 'Creating & reading sources…' : template ? 'Creating & analysing template…' : 'Creating…')
+    : createdId ? 'Retry uploads' : 'Create workspace'
 
   return (
     <div className="modal-scrim" onMouseDown={(e) => e.target === e.currentTarget && !busy && close()}>
@@ -99,8 +137,10 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
             <legend>Output format</legend>
             <div className="format-grid">
               {Object.entries(FORMATS).map(([key, f]) => (
-                <label key={key} className={`format-opt ${form.target_format === key ? 'on' : ''}`} style={{ '--fmt': f.color }}>
-                  <input type="radio" name="fmt" value={key} checked={form.target_format === key} onChange={set('target_format')} />
+                <label key={key} className={`format-opt ${form.target_format === key ? 'on' : ''} ${complexScript && key === 'PDF' ? 'off' : ''}`}
+                  style={{ '--fmt': f.color }} title={complexScript && key === 'PDF' ? 'PDF is available for Latin-script languages; use Word or PowerPoint' : undefined}>
+                  <input type="radio" name="fmt" value={key} checked={form.target_format === key} onChange={set('target_format')}
+                    disabled={complexScript && key === 'PDF'} />
                   <span className="format-ext">{f.ext}</span>
                   <span className="format-name">{f.label}</span>
                   <span className="format-hint">{f.hint}</span>
@@ -108,6 +148,14 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
               ))}
             </div>
           </fieldset>
+
+          <label className="field">
+            <span>Language</span>
+            <select value={form.language} onChange={setLanguage} disabled={!!createdId}>
+              {LANGUAGES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+            </select>
+            {complexScript && <small className="field-hint">Word, PowerPoint and Markdown support {form.language} fully. PDF is limited to Latin-script languages.</small>}
+          </label>
 
           <div className="field">
             <span>Brand template <em>optional</em></span>
@@ -143,6 +191,39 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
               onChange={(e) => { pickTemplate(e.target.files[0]); e.target.value = '' }} />
           </div>
 
+          <div className="field">
+            <span>Source documents <em>optional · the AI writes only from these and cites them</em></span>
+            <div
+              className={`dropzone dropzone-compact ${srcDrag ? 'drag' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setSrcDrag(true) }}
+              onDragLeave={() => setSrcDrag(false)}
+              onDrop={(e) => { e.preventDefault(); setSrcDrag(false); addSources(e.dataTransfer.files) }}
+              onClick={() => srcRef.current?.click()}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && srcRef.current?.click()}
+              role="button"
+              tabIndex={0}
+            >
+              <span className="drop-icon"><Icon name="folder" size={18} /></span>
+              <span className="drop-text">
+                <span><b>Drop reports, policies or notes</b> (.pdf / .docx / .txt / .md)</span>
+                <small>Each fact will cite the file and page, e.g. [report.pdf, p.3]. Up to 10 files.</small>
+              </span>
+            </div>
+            <input ref={srcRef} type="file" multiple accept={SOURCE_TYPES.join(',')} hidden
+              onChange={(e) => { addSources(e.target.files); e.target.value = '' }} />
+            {sources.length > 0 && (
+              <div className="src-list">
+                {sources.map((f) => (
+                  <span key={f.name} className="chip chip-cyan">
+                    <Icon name="file" size={12} /> {f.name} · {formatBytes(f.size)}
+                    <button type="button" className="chip-x" onClick={() => setSources((l) => l.filter((x) => x !== f))}
+                      disabled={busy} aria-label={`Remove ${f.name}`}><Icon name="x" size={12} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           <label className="field">
             <span>Instructions <em>optional</em></span>
             <textarea rows={2} value={form.user_instructions} onChange={set('user_instructions')} disabled={!!createdId}
@@ -155,7 +236,7 @@ export default function NewTopicModal({ initial, onClose, onCreate, onCreated })
             <button type="button" className="btn btn-ghost" onClick={close} disabled={busy}>
               {createdId ? 'Continue without template' : 'Cancel'}
             </button>
-            <button type="submit" className="btn btn-primary" disabled={busy || (createdId && !template)}>
+            <button type="submit" className="btn btn-primary" disabled={busy || (createdId && !template && !sources.length)}>
               {busy && <span className="spinner" />}
               {submitLabel} {!busy && <Icon name="arrow" size={16} />}
             </button>

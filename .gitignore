@@ -43,9 +43,10 @@ storage/outputs/*.pdf
 node_modules/
 frontend/dist/
 
-# Runtime storage (uploaded templates, per-topic deliverables)
+# Runtime storage (uploaded templates and sources, per-topic deliverables)
 storage/templates/
 storage/outputs/*/
+storage/sources/
 
 # Temporary clone of the A+B repository
 _temp_ab/

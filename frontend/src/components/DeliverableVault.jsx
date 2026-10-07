@@ -2,7 +2,7 @@ import { api } from '../api'
 import Icon from './Icon'
 import { FORMATS, formatBytes, formatTime } from '../constants'
 
-export default function DeliverableVault({ deliverable: d }) {
+export default function DeliverableVault({ deliverable: d, versions = [] }) {
   const fmt = FORMATS[d.format] || FORMATS.DOCX
   const report = d.accessibility_report || {}
   const checks = [
@@ -36,6 +36,7 @@ export default function DeliverableVault({ deliverable: d }) {
               <span>{formatBytes(d.file_size_bytes)}</span>
               <span>~{d.page_or_slide_count} {unitLabel}</span>
               <span>Compiled {formatTime(d.compiled_at)}</span>
+              {d.version && <span>Version {d.version}</span>}
             </div>
             <a className="btn btn-primary btn-lg" href={api.fileUrl(d.download_url)} download={d.file_name}>
               <Icon name="download" /> Download {fmt.ext}
@@ -47,8 +48,8 @@ export default function DeliverableVault({ deliverable: d }) {
           <div className={`a11y-badge ${d.wcag_compliant ? 'pass' : 'warn'}`}>
             <Icon name="shield" size={26} />
             <div>
-              <strong>WCAG 2.2 AA</strong>
-              <span>{d.wcag_compliant ? 'Accessibility audit passed' : 'Needs attention'}</span>
+              <strong>Accessibility checks</strong>
+              <span>{d.wcag_compliant ? 'Passed automated WCAG 2.2 AA checks' : 'Some automated checks need attention'}</span>
             </div>
           </div>
           <ul className="a11y-checks">
@@ -68,6 +69,24 @@ export default function DeliverableVault({ deliverable: d }) {
           )}
         </div>
       </div>
+
+      {versions.length > 0 && (
+        <div className="versions">
+          <h3><Icon name="layers" size={15} /> Version history</h3>
+          <ol>
+            {[...versions].reverse().map((v) => (
+              <li key={v.file_name} className={v.file_name === d.file_name ? 'current' : ''}>
+                <span className="v-tag">v{v.version || '1.0'}</span>
+                <span className="v-note">{v.change_note || 'Approved version'}</span>
+                <span className="v-time">{formatTime(v.compiled_at)}</span>
+                <a href={api.fileUrl(v.download_url)} download={v.file_name} aria-label={`Download version ${v.version}`}>
+                  <Icon name="download" size={15} />
+                </a>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </section>
   )
 }

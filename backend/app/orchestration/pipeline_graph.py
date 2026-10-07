@@ -15,6 +15,7 @@ class PipelineGraphState(TypedDict):
     description: str
     target_format: str
     user_instructions: Optional[str]
+    language: Optional[str]
     template_file_path: Optional[str]
     structured_requirements: Optional[Dict[str, Any]]
     content_plan: Optional[Dict[str, Any]]
@@ -71,6 +72,15 @@ class PipelineGraph:
             "layout_rules": {"max_bullets_per_slide": 5}
         }
 
+    @staticmethod
+    def _source_digest(topic_id: str, max_chars: int = 6000) -> Optional[str]:
+        """Labelled text of the topic's uploaded sources, so planning stays within what they cover."""
+        from app.services.vector_service import vector_service
+        if not vector_service.has_sources(topic_id):
+            return None
+        digest = "\n".join(f"[{r['label']}] {r['content']}" for r in vector_service._in_memory_store[topic_id])
+        return digest[:max_chars]
+
     def execute_step(self, step_name: str, state: PipelineGraphState) -> PipelineGraphState:
         """Executes a single node in the graph and updates state."""
         new_state = dict(state)
@@ -89,7 +99,9 @@ class PipelineGraph:
             plan = planning_agent.run(
                 title=state["title"],
                 target_format=state["target_format"],
-                requirements=reqs
+                requirements=reqs,
+                language=state.get("language") or "English",
+                source_digest=self._source_digest(state["topic_id"]),
             )
             new_state["content_plan"] = plan.model_dump()
             new_state["current_step"] = "Planning Complete"
@@ -120,13 +132,14 @@ class PipelineGraph:
                 template_guidance=guidance,
                 requirements=state.get("structured_requirements"),
                 user_instructions=state.get("user_instructions"),
+                language=state.get("language") or "English",
             )
             new_state["draft_content"] = draft
             new_state["current_step"] = "Content Generation Complete"
 
         elif step_name == "Agent 6: Content Review":
             draft = state.get("draft_content") or f"# {state['title']}\n\nDraft content standard preview."
-            refined_content, changelog = review_agent.run(draft)
+            refined_content, changelog = review_agent.run(draft, state.get("language") or "English")
             
             new_state["refined_content"] = refined_content
             new_state["review_changelog"] = changelog.model_dump()

@@ -4,8 +4,8 @@ export const AGENTS = [
   { name: 'Reference Analysis Agent', short: 'Reference Analysis', accent: 'cyan', icon: 'palette', blurb: 'Extracts palette, typography and layout from your template.' },
   { name: 'Research & Enrichment Agent', short: 'Research & Enrichment', accent: 'violet', icon: 'search', blurb: 'Grounds every section in topic-scoped, cited facts.' },
   { name: 'Content Generation Agent', short: 'Content Generation', accent: 'violet', icon: 'pen', blurb: 'Writes the full draft, section by section.' },
-  { name: 'Content Review Agent', short: 'Content Review', accent: 'violet', icon: 'shield', blurb: 'Audits readability, trims fluff and verifies citations.' },
-  { name: 'Format Generation Agent', short: 'Format Generation', accent: 'cyan', icon: 'file', blurb: 'Compiles a native deliverable audited for WCAG 2.2 AA.' },
+  { name: 'Content Review Agent', short: 'Content Review', accent: 'violet', icon: 'shield', blurb: 'Measures readability, trims fluff and checks citations are kept.' },
+  { name: 'Format Generation Agent', short: 'Format Generation', accent: 'cyan', icon: 'file', blurb: 'Compiles the native file and runs automated accessibility checks.' },
 ]
 
 export const FORMATS = {
@@ -14,6 +14,21 @@ export const FORMATS = {
   PDF: { label: 'PDF', ext: '.pdf', color: '#f87171', hint: 'Print-ready brief' },
   MD: { label: 'Markdown', ext: '.md', color: '#a3e635', hint: 'Docs-as-code' },
 }
+
+// complex: scripts the PDF engine can't shape correctly, so PDF output is disabled for them.
+export const LANGUAGES = [
+  { value: 'English', label: 'English' },
+  { value: 'Hindi', label: 'हिन्दी · Hindi', complex: true },
+  { value: 'Marathi', label: 'मराठी · Marathi', complex: true },
+  { value: 'Tamil', label: 'தமிழ் · Tamil', complex: true },
+  { value: 'Telugu', label: 'తెలుగు · Telugu', complex: true },
+  { value: 'Bengali', label: 'বাংলা · Bengali', complex: true },
+  { value: 'Gujarati', label: 'ગુજરાતી · Gujarati', complex: true },
+  { value: 'Kannada', label: 'ಕನ್ನಡ · Kannada', complex: true },
+  { value: 'Spanish', label: 'Español · Spanish' },
+  { value: 'French', label: 'Français · French' },
+  { value: 'German', label: 'Deutsch · German' },
+]
 
 export const PRESETS = [
   {
@@ -55,6 +70,15 @@ export const STATUS_LABELS = {
 
 export const formatBytes = (n = 0) =>
   n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(2)} MB`
+
+export const formatMinutes = (m = 0) => {
+  const h = Math.floor(m / 60)
+  const min = Math.round(m % 60)
+  return h ? `${h} h${min ? ` ${min} min` : ''}` : `${min} min`
+}
+
+export const formatMoney = (usd = 0, inr = 0) =>
+  `$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(2)} (≈ ₹${inr < 1 ? inr.toFixed(2) : inr.toFixed(0)})`
 
 export const formatTime = (iso) => {
   const d = iso ? new Date(iso) : new Date()

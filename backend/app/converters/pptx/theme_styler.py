@@ -10,7 +10,10 @@ def pptx_hex_to_rgb(hex_str: str) -> RGBColor:
 
 def apply_text_styling(paragraph, text: str, font_name: str, font_size_pt: int, color_hex: str, bold: bool = False):
     paragraph.text = text
-    paragraph.font.name = font_name
-    paragraph.font.size = Pt(font_size_pt)
-    paragraph.font.bold = bold
-    paragraph.font.color.rgb = pptx_hex_to_rgb(color_hex)
+    # Style both the paragraph defaults and each run: PowerPoint honours either, but some renderers
+    # (e.g. the in-browser preview) only read run-level properties.
+    for font in [paragraph.font] + [run.font for run in paragraph.runs]:
+        font.name = font_name
+        font.size = Pt(font_size_pt)
+        font.bold = bold
+        font.color.rgb = pptx_hex_to_rgb(color_hex)

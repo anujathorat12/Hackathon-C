@@ -20,6 +20,7 @@ const json = (method, body) => ({
 
 export const api = {
   health: () => request('/api/health'),
+  stats: () => request(`${WS_ROOT}/stats/summary`),
   list: () => request(WS_ROOT),
   create: (data) => request(WS_ROOT, json('POST', data)),
   remove: (id) => request(`${WS_ROOT}/${id}`, { method: 'DELETE' }),
@@ -30,8 +31,17 @@ export const api = {
     form.append('file', file)
     return request(`${WS_ROOT}/${id}/templates`, { method: 'POST', body: form })
   },
+  sources: (id) => request(`${WS_ROOT}/${id}/sources`),
+  uploadSource: (id, file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request(`${WS_ROOT}/${id}/sources`, { method: 'POST', body: form })
+  },
   generate: (id) => request(`${WS_ROOT}/${id}/generate`, json('POST')),
   approve: (id, content) => request(`${WS_ROOT}/${id}/approve`, json('POST', { content_markdown: content })),
+  preview: (id, content) => request(`${WS_ROOT}/${id}/preview`, json('POST', { content_markdown: content })),
+  revise: (id, content, instruction, section) =>
+    request(`${WS_ROOT}/${id}/revise`, json('POST', { content_markdown: content, instruction, section: section || null })),
   streamUrl: (id) => {
     const origin = BASE || window.location.origin
     return origin.replace(/^http/, 'ws') + `${WS_ROOT}/${id}/stream`
