@@ -37,4 +37,5 @@ export const api = {
     return origin.replace(/^http/, 'ws') + `${WS_ROOT}/${id}/stream`
   },
   fileUrl: (path) => BASE + path,
+  deliverablePreview: (id) => request(`${WS_ROOT}/${id}/deliverable/preview`),
 }

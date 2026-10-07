@@ -85,11 +85,14 @@ class PipelineGraph:
             new_state["current_step"] = "Requirement Analysis Complete"
 
         elif step_name == "Agent 2: Planning":
+            if not new_state.get("template_guidance") and state.get("template_file_path"):
+                new_state["template_guidance"] = self.load_template_guidance(state.get("template_file_path"))
             reqs = StructuredRequirements(**(state.get("structured_requirements") or {}))
             plan = planning_agent.run(
                 title=state["title"],
                 target_format=state["target_format"],
-                requirements=reqs
+                requirements=reqs,
+                template_guidance=new_state.get("template_guidance")
             )
             new_state["content_plan"] = plan.model_dump()
             new_state["current_step"] = "Planning Complete"

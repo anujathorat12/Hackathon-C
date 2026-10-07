@@ -76,6 +76,9 @@ class ReviewAgent:
         if not refined_content or len(refined_content.strip()) < 50:
             refined_content = draft_content
 
+        # Strip any meta instructions or prompt echoes
+        refined_content = re.sub(r"(?i)\*?add\s+(?:logo|branding|image|background).*?(?:template|palette|ppt)\.?\*?\n?", "", refined_content)
+
         # Compute post-review metrics
         final_grade, remaining_long = self.compute_readability_metrics(refined_content)
         

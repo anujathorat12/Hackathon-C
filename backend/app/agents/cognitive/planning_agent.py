@@ -28,7 +28,19 @@ class PlanningAgent:
         "'section_id', 'heading', 'key_points', 'target_word_count', and 'layout_type'."
     )
 
-    def run(self, title: str, target_format: str, requirements: StructuredRequirements) -> ContentPlan:
+    def run(self, title: str, target_format: str, requirements: StructuredRequirements,
+            template_guidance: Optional[dict] = None) -> ContentPlan:
+        template_context = ""
+        if template_guidance:
+            sections = template_guidance.get("detected_section_hierarchy") or []
+            if sections:
+                template_context = (
+                    f"Reference Template Slide Structure:\n"
+                    f"The template provides these slide themes/sections: {', '.join(sections)}.\n"
+                    f"You MUST align your presentation outline with this corporate structure, adapting the topic '{title}' "
+                    f"across each of these slide themes consistently.\n\n"
+                )
+
         prompt = (
             f"Document Title: {title}\n"
             f"Target Format: {target_format}\n"
@@ -37,8 +49,10 @@ class PlanningAgent:
             f"Deliverables: {', '.join(requirements.key_deliverables)}\n"
             f"Tone: {requirements.tone}\n"
             f"Constraints: {', '.join(requirements.constraints)}\n\n"
+            f"{template_context}"
             f"Generate a multi-section document plan customized for {target_format} format "
-            f"({'6-10 slides, one section per slide' if target_format == 'PPT' else '4-7 sections'}). "
+            f"({'5-8 slides, one section per slide' if target_format == 'PPT' else '4-7 sections'}). "
+            "Ensure the template flow and narrative continuity are maintained across ALL slides, from start to finish. "
             "Every section must be specifically about the document title above."
         )
         data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT)

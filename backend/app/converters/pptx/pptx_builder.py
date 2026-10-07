@@ -98,10 +98,10 @@ def build_pptx_deliverable(
     # =========================================================================
     slide1 = prs.slides.add_slide(blank_layout)
 
-    # 1. Dark Background Canvas
+    # 1. Dark Background Canvas (Inherited from template primary brand color)
     bg_shape = slide1.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.33), Inches(7.5))
     bg_shape.fill.solid()
-    bg_shape.fill.fore_color.rgb = pptx_hex_to_rgb("#0A192F")
+    bg_shape.fill.fore_color.rgb = primary_rgb
     bg_shape.line.fill.background()
 
     # 2. Left Accent Vertical Brand Pillar
@@ -110,8 +110,8 @@ def build_pptx_deliverable(
     pillar.fill.fore_color.rgb = accent_rgb
     pillar.line.fill.background()
 
-    # 3. Pill Badge (System ID)
-    badge = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.2), Inches(1.2), Inches(3.8), Inches(0.45))
+    # 3. Pill Badge (System ID & Template Source)
+    badge = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.2), Inches(1.2), Inches(4.5), Inches(0.45))
     badge.fill.solid()
     badge.fill.fore_color.rgb = pptx_hex_to_rgb("#172A45")
     badge.line.color.rgb = accent_rgb
@@ -120,7 +120,8 @@ def build_pptx_deliverable(
     b_tf.word_wrap = False
     bp = b_tf.paragraphs[0]
     bp.alignment = PP_ALIGN.CENTER
-    apply_text_styling(bp, "SYSTEM DELIVERABLE • AGENT-101", font_name=font_heading, font_size_pt=10, color_hex=accent_hex, bold=True)
+    badge_label = f"BRAND TEMPLATE: {guidance.source_file_name[:25]}" if guidance.source_file_name else "SYSTEM DELIVERABLE • AGENT-101"
+    apply_text_styling(bp, badge_label.upper(), font_name=font_heading, font_size_pt=9.5, color_hex=accent_hex, bold=True)
 
     # 4. Main Cover Title
     title_text = metadata.document_title
@@ -140,14 +141,14 @@ def build_pptx_deliverable(
     s_tf.word_wrap = True
     sp = s_tf.paragraphs[0]
     sub_content = "Autonomous Multi-Agent AI Content Generation & Synthesis System\nStrict Topic Isolation • Native Binary Architecture • WCAG 2.2 Level AA"
-    apply_text_styling(sp, sub_content, font_name=font_body, font_size_pt=15, color_hex="#8892B0", bold=False)
+    apply_text_styling(sp, sub_content, font_name=font_body, font_size_pt=15, color_hex="#A0AEC0", bold=False)
 
     # 6. Bottom Metadata Strip
     meta_box = slide1.shapes.add_textbox(Inches(1.2), Inches(6.2), Inches(11.0), Inches(0.6))
     m_tf = meta_box.text_frame
     mp = m_tf.paragraphs[0]
     meta_text = f"VERSION {metadata.version}   |   DATE: {metadata.date}   |   AUTHOR: {metadata.author}"
-    apply_text_styling(mp, meta_text, font_name=font_body, font_size_pt=10, color_hex="#64FFDA", bold=True)
+    apply_text_styling(mp, meta_text, font_name=font_body, font_size_pt=10, color_hex=accent_hex, bold=True)
 
     # =========================================================================
     # BODY SLIDES (SLIDES 2+): KPI STAT CARDS & STRUCTURED CONTENT
@@ -165,11 +166,17 @@ def build_pptx_deliverable(
         canvas.fill.fore_color.rgb = pptx_hex_to_rgb("#FBFDFF")
         canvas.line.fill.background()
 
-        # 2. Extract Slide Title
-        slide_title = "Executive Architecture"
+        # 2. Extract Slide Title & Content (filter meta placeholders and dividers)
+        slide_title = f"Slide {slide_idx}"
         content_lines: List[str] = []
 
         for line in lines:
+            # Skip horizontal rules and meta placeholders
+            if line in ["---", "***", "___"]:
+                continue
+            if re.search(r"(?i)add\s+(?:logo|branding|image|background)", line):
+                continue
+
             if line.startswith('# ') or line.startswith('## ') or line.startswith('### '):
                 slide_title = line.lstrip('# ').strip()
             elif line.startswith('* ') or line.startswith('- '):

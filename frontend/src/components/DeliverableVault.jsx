@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import { api } from '../api'
 import Icon from './Icon'
 import { FORMATS, formatBytes, formatTime } from '../constants'
+import SlideDeckPreview from './SlideDeckPreview'
+import WordDocumentPreview from './WordDocumentPreview'
 
-export default function DeliverableVault({ deliverable: d }) {
+export default function DeliverableVault({ deliverable: d, topicId, refinedContent = '', title = 'Deliverable' }) {
+  const [showPreview, setShowPreview] = useState(false)
   const fmt = FORMATS[d.format] || FORMATS.DOCX
   const report = d.accessibility_report || {}
   const checks = [
@@ -37,9 +41,18 @@ export default function DeliverableVault({ deliverable: d }) {
               <span>~{d.page_or_slide_count} {unitLabel}</span>
               <span>Compiled {formatTime(d.compiled_at)}</span>
             </div>
-            <a className="btn btn-primary btn-lg" href={api.fileUrl(d.download_url)} download={d.file_name}>
-              <Icon name="download" /> Download {fmt.ext}
-            </a>
+            <div className="file-card-buttons">
+              <a className="btn btn-primary btn-lg" href={api.fileUrl(d.download_url)} download={d.file_name}>
+                <Icon name="download" /> Download {fmt.ext}
+              </a>
+              <button
+                type="button"
+                className={`btn btn-secondary btn-lg ${showPreview ? 'is-active' : ''}`}
+                onClick={() => setShowPreview(!showPreview)}
+              >
+                <Icon name={showPreview ? 'x' : 'eye'} /> {showPreview ? 'Close preview' : `Inspect ${fmt.label}`}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -68,6 +81,36 @@ export default function DeliverableVault({ deliverable: d }) {
           )}
         </div>
       </div>
+
+      {showPreview && (
+        <div className="vault-preview-expanded">
+          <div className="vault-preview-header">
+            <h3><Icon name="eye" size={16} /> Compiled Deliverable Preview ({fmt.label})</h3>
+            <span className="hint">Interactive presentation rendered from compiled deliverable</span>
+          </div>
+          <div className="doc-frame">
+            {d.format === 'PPT' ? (
+              <SlideDeckPreview
+                markdown={refinedContent}
+                title={title}
+                topicId={topicId}
+                deliverable={d}
+                status="COMPLETED"
+              />
+            ) : d.format === 'DOCX' ? (
+              <WordDocumentPreview
+                markdown={refinedContent}
+                title={title}
+                deliverable={d}
+              />
+            ) : (
+              <div className="doc" style={{ padding: 24 }}>
+                <pre style={{ whiteSpace: 'pre-wrap' }}>{refinedContent}</pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
