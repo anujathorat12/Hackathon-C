@@ -48,7 +48,7 @@ def _run(topic_id: str) -> Dict[str, Any]:
     return _runs.setdefault(topic_id, {"events": [], "refined_content": None, "deliverables": []})
 
 
-PERSISTED_RUN_KEYS = ("events", "refined_content", "deliverables", "notes_cache", "revisions", "approved_content", "value")
+PERSISTED_RUN_KEYS = ("events", "refined_content", "deliverables", "notes_cache", "revisions", "approved_content", "value", "display_title")
 
 
 async def _load_run(topic_id: str) -> Dict[str, Any]:
@@ -382,6 +382,11 @@ async def websocket_endpoint(websocket: WebSocket, topic_id: str):
             template_file_path=template_file_path,
         ):
             data = event.model_dump()
+            if event.agent_name == "Planning Agent" and event.status == "COMPLETED":
+                # The planner returns the title in the document's language; show that title in the document.
+                planned = (event.payload or {}).get("title")
+                if (ws.get("language") or "English") != "English" and planned:
+                    run["display_title"] = planned
             if event.agent_name == "Content Review Agent" and event.status == "WAITING_FOR_REVIEW":
                 run["refined_content"] = event.payload.get("refined_content", "")
                 run["value"] = event.payload.get("value")
@@ -440,6 +445,8 @@ async def _compile(topic_id: str, ws: Dict[str, Any], content: str, template_fil
     from app.agents.document.reference_agent import ReferenceAnalysisAgent
     from app.agents.document.format_agent import FormatGenerationAgent
     from app.shared.schemas.template_models import DocumentCompileRequest, DocumentControlMetadata
+    from app.shared.i18n import format_date, labels, smart_title
+    language = ws.get("language") or "English"
 
     speaker_notes = None
     if ws["target_format"] == "PPT":
@@ -465,7 +472,11 @@ async def _compile(topic_id: str, ws: Dict[str, Any], content: str, template_fil
             template_guidance=guidance,
             output_directory=str(output_dir),
             speaker_notes=speaker_notes,
-            document_control_metadata=DocumentControlMetadata(version=version),
+            display_title=_run(topic_id).get("display_title") or smart_title(ws["title"]),
+            document_control_metadata=DocumentControlMetadata(
+                version=version, language=language, date=format_date(language),
+                author=labels(language)["authorship_text"],
+            ),
         )
         return FormatGenerationAgent().compile_document(request)
 

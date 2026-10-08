@@ -9,7 +9,32 @@ from docx.oxml.ns import nsdecls, qn
 
 from ...shared.schemas.template_models import DocumentControlMetadata, TemplateGuidanceProfile
 from .document_control import insert_document_control_page, hex_to_rgb
+from ...shared.i18n import labels
 from .table_styler import insert_styled_table
+
+INLINE_MD = re.compile(r"(\*\*\*(?!\s).+?(?<!\s)\*\*\*|\*\*(?!\s).+?(?<!\s)\*\*|\*(?!\s)[^*]+?(?<!\s)\*)")
+
+
+def add_markdown_runs(paragraph, text: str, font_name: str, size_pt: float, color: RGBColor, bold_color: RGBColor):
+    """Add text as runs honouring ***bold italic***, **bold** and *italic* (underscores are left alone so
+    file names in citations such as [Wellness_Policy.docx, §1] are not mangled)."""
+    for part in INLINE_MD.split(text):
+        if not part:
+            continue
+        bold = italic = False
+        if part.startswith("***") and part.endswith("***") and len(part) > 6:
+            part, bold, italic = part[3:-3], True, True
+        elif part.startswith("**") and part.endswith("**") and len(part) > 4:
+            part, bold = part[2:-2], True
+        elif part.startswith("*") and part.endswith("*") and len(part) > 2:
+            part, italic = part[1:-1], True
+        run = paragraph.add_run(part)
+        run.font.bold = bold or None
+        run.font.italic = italic or None
+        run.font.color.rgb = bold_color if bold else color
+        run.font.name = font_name
+        run.font.size = Pt(size_pt)
+
 
 def _has_content(part) -> bool:
     """True if a header/footer has text or graphics (a logo) worth keeping."""
@@ -79,7 +104,8 @@ def build_docx_deliverable(
         ftr = section.footer
         ftr_p = ftr.paragraphs[0]
         ftr_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        ftr_run1 = ftr_p.add_run(f"Version {metadata.version}  •  {metadata.date}  •  Prepared with AGENT-101")
+        L = labels(metadata.language)
+        ftr_run1 = ftr_p.add_run(f"{L['version']} {metadata.version}  •  {metadata.date}  •  {L['prepared']}")
         ftr_run1.font.name = guidance.typography.body_font
         ftr_run1.font.size = Pt(8)
         ftr_run1.font.color.rgb = RGBColor(150, 160, 170)
@@ -196,18 +222,7 @@ def build_docx_deliverable(
             p.paragraph_format.left_indent = Inches(0.12)
             p.paragraph_format.right_indent = Inches(0.12)
             
-            # Parse bold inside callout
-            parts = re.split(r'(\*\*.*?\*\*)', callout_text)
-            for part in parts:
-                if part.startswith('**') and part.endswith('**'):
-                    run = p.add_run(part[2:-2])
-                    run.font.bold = True
-                    run.font.color.rgb = primary_rgb
-                else:
-                    run = p.add_run(part)
-                    run.font.color.rgb = RGBColor(55, 65, 81)
-                run.font.name = guidance.typography.body_font
-                run.font.size = Pt(10)
+            add_markdown_runs(p, callout_text, guidance.typography.body_font, 10, RGBColor(55, 65, 81), primary_rgb)
 
             # Spacing after callout box
             post_p = doc.add_paragraph()
@@ -225,18 +240,7 @@ def build_docx_deliverable(
             p.paragraph_format.space_after = Pt(2.5)
             p.paragraph_format.line_spacing = 1.15
             
-            # Handle inline bold: **bold**
-            parts = re.split(r'(\*\*.*?\*\*)', item_text)
-            for part in parts:
-                if part.startswith('**') and part.endswith('**'):
-                    run = p.add_run(part[2:-2])
-                    run.font.bold = True
-                    run.font.color.rgb = primary_rgb
-                else:
-                    run = p.add_run(part)
-                    run.font.color.rgb = RGBColor(34, 34, 34)
-                run.font.name = guidance.typography.body_font
-                run.font.size = Pt(10.5)
+            add_markdown_runs(p, item_text, guidance.typography.body_font, 10.5, RGBColor(34, 34, 34), primary_rgb)
             line_idx += 1
             continue
 
@@ -246,18 +250,7 @@ def build_docx_deliverable(
         p.paragraph_format.space_after = Pt(7)
         p.paragraph_format.line_spacing = 1.18
 
-        # Handle inline bold: **bold**
-        parts = re.split(r'(\*\*.*?\*\*)', line)
-        for part in parts:
-            if part.startswith('**') and part.endswith('**'):
-                run = p.add_run(part[2:-2])
-                run.font.bold = True
-                run.font.color.rgb = primary_rgb
-            else:
-                run = p.add_run(part)
-                run.font.color.rgb = RGBColor(34, 34, 34)
-            run.font.name = guidance.typography.body_font
-            run.font.size = Pt(10.5)
+        add_markdown_runs(p, line, guidance.typography.body_font, 10.5, RGBColor(34, 34, 34), primary_rgb)
 
         line_idx += 1
 

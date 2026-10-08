@@ -9,6 +9,7 @@ from pptx.enum.text import PP_ALIGN
 
 from ...shared.schemas.template_models import DocumentControlMetadata, TemplateGuidanceProfile
 from .theme_styler import pptx_hex_to_rgb, apply_text_styling
+from ...shared.i18n import labels
 
 def parse_stat_metric(text: str) -> Optional[Tuple[str, str, str]]:
     """
@@ -131,7 +132,8 @@ def build_pptx_deliverable(
     b_tf.word_wrap = False
     bp = b_tf.paragraphs[0]
     bp.alignment = PP_ALIGN.CENTER
-    apply_text_styling(bp, f"PRESENTATION  •  {metadata.date}".upper(), font_name=font_heading, font_size_pt=10, color_hex=accent_hex, bold=True)
+    L = labels(metadata.language)
+    apply_text_styling(bp, f"{L['presentation']}  •  {metadata.date}".upper(), font_name=font_heading, font_size_pt=10, color_hex=accent_hex, bold=True)
 
     # 4. Main Cover Title
     title_text = metadata.document_title
@@ -157,7 +159,7 @@ def build_pptx_deliverable(
     meta_box = slide1.shapes.add_textbox(Inches(1.2), Inches(6.2), Inches(11.0), Inches(0.6))
     m_tf = meta_box.text_frame
     mp = m_tf.paragraphs[0]
-    meta_text = f"Version {metadata.version}   |   {metadata.date}"
+    meta_text = f"{L['version']} {metadata.version}   |   {metadata.date}"
     apply_text_styling(mp, meta_text, font_name=font_body, font_size_pt=10, color_hex="#64FFDA", bold=True)
 
     # Determine dark vs light mode for content canvas
@@ -329,7 +331,7 @@ def build_pptx_deliverable(
         num_box = slide.shapes.add_textbox(Inches(10.5), Inches(6.88), Inches(2.0), Inches(0.4))
         np = num_box.text_frame.paragraphs[0]
         np.alignment = PP_ALIGN.RIGHT
-        apply_text_styling(np, f"SLIDE {slide_idx}", font_name=font_body, font_size_pt=9, color_hex="#818CF8" if is_dark_deck else "#A0AEC0", bold=True)
+        apply_text_styling(np, f"{L['slide']} {slide_idx}", font_name=font_body, font_size_pt=9, color_hex="#818CF8" if is_dark_deck else "#A0AEC0", bold=True)
 
     prs.save(output_path)
     print(f"[PPTX Builder] Successfully generated presentation: {output_path}")

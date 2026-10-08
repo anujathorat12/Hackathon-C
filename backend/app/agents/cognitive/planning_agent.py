@@ -43,6 +43,8 @@ class PlanningAgent:
             "Every section must be specifically about the document title above. "
             f"Write all headings and key points in {language}."
         )
+        if language.lower() != "english":
+            prompt += f" Also return 'title' as the document title translated into {language}."
         if source_digest:
             prompt += (
                 "\n\nThe document must be based ONLY on the user's source documents below. Plan only sections "

@@ -3,6 +3,15 @@ from typing import Dict, Any, Tuple
 from pydantic import BaseModel, Field
 from app.services.llm_service import llm_service
 
+CITATION_NEEDS_SPACE = re.compile(r"(?<=[^\s\[(!])\[(?=[^\]\n]{2,150}\](?!\())")
+
+
+def tidy_citations(text: str) -> str:
+    """Normalise citation brackets (some models use 【】) and keep a space before each [citation]."""
+    text = text.replace("【", "[").replace("】", "]")
+    return CITATION_NEEDS_SPACE.sub(" [", text)
+
+
 class ReviewChangelog(BaseModel):
     # All values are measured on the actual draft and refined text; none are estimated or padded.
     reading_grade_level: float = Field(..., description="Flesch-Kincaid grade of the refined prose (target 8-10)")
@@ -104,7 +113,7 @@ class ReviewAgent:
 
         if not refined_content or len(refined_content.strip()) < 50:
             refined_content = draft_content
-        refined_content = refined_content.replace("【", "[").replace("】", "]")
+        refined_content = tidy_citations(refined_content)
 
         # Measure the refined text against the draft.
         final_grade, remaining_long = self.compute_readability_metrics(refined_content)

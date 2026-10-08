@@ -65,7 +65,8 @@ class GenerationAgent:
         draft_content = re.sub(r"\s*\*?\((?:≈|~|approx\.?)?\s*\d+\s*words?\)\*?", "", draft_content)
 
         # Some models cite with lenticular brackets; normalise to [ ] so citations can be checked.
-        draft_content = draft_content.replace("【", "[").replace("】", "]")
+        from app.agents.cognitive.review_agent import tidy_citations
+        draft_content = tidy_citations(draft_content)
 
         # Clean formatting
         if not draft_content.startswith("# "):

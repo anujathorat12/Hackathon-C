@@ -40,6 +40,7 @@ class DocumentControlMetadata(BaseModel):
     version: str = "1.0"
     date: str = Field(default_factory=lambda: datetime.date.today().strftime("%d %B %Y"))
     author: str = "Prepared with AGENT-101 (AI-generated, human-reviewed)"
+    language: str = "English"  # labels on cover/control pages are rendered in this language
 
 class DocumentCompileRequest(BaseModel):
     topic_id: str
@@ -49,6 +50,7 @@ class DocumentCompileRequest(BaseModel):
     template_guidance: Optional[TemplateGuidanceProfile] = Field(default_factory=TemplateGuidanceProfile)
     document_control_metadata: Optional[DocumentControlMetadata] = Field(default_factory=DocumentControlMetadata)
     output_directory: Optional[str] = "storage/outputs"
+    display_title: Optional[str] = Field(default=None, description="Title shown in the document (e.g. translated); file names use `title`")
     speaker_notes: Optional[Dict[str, str]] = Field(default=None, description="Presenter notes keyed by section heading (decks only)")
 
 class AccessibilityReport(BaseModel):

@@ -5,6 +5,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml, OxmlElement
 from docx.oxml.ns import nsdecls, qn
 from ...shared.schemas.template_models import DocumentControlMetadata, TemplateGuidanceProfile
+from ...shared.i18n import labels
 
 def hex_to_rgb(hex_str: str) -> RGBColor:
     hex_clean = hex_str.lstrip('#')
@@ -37,7 +38,8 @@ def insert_document_control_page(
     # Subtitle / Classification Pill
     sub_p = doc.add_paragraph()
     sub_p.paragraph_format.space_after = Pt(32)
-    sub_run = sub_p.add_run(f"VERSION {metadata.version}  •  {metadata.date}".upper())
+    L = labels(metadata.language)
+    sub_run = sub_p.add_run(f"{L['version']} {metadata.version}  •  {metadata.date}".upper())
     sub_run.font.name = guidance.typography.body_font
     sub_run.font.size = Pt(10)
     sub_run.font.bold = True
@@ -46,7 +48,7 @@ def insert_document_control_page(
     # 2. Document Control Table Header Label
     lbl_p = doc.add_paragraph()
     lbl_p.paragraph_format.space_after = Pt(6)
-    lbl_run = lbl_p.add_run("Document Control")
+    lbl_run = lbl_p.add_run(L["document_control"])
     lbl_run.font.name = guidance.typography.heading_font
     lbl_run.font.size = Pt(13)
     lbl_run.font.bold = True
@@ -54,13 +56,13 @@ def insert_document_control_page(
 
     # 3. Create the 2-Column Document Control Table
     table_rows = [
-        ("Item", "Detail"),
-        ("Document Title", metadata.document_title),
-        ("File Name", metadata.file_name),
-        ("Version", metadata.version),
-        ("Date", metadata.date),
-        ("Authorship", metadata.author),
-        ("Accessibility", "Automated WCAG 2.2 AA checks: colour contrast, heading order, table headers")
+        (L["item"], L["detail"]),
+        (L["document_title"], metadata.document_title),
+        (L["file_name"], metadata.file_name),
+        (L["version"], metadata.version),
+        (L["date"], metadata.date),
+        (L["authorship"], metadata.author),
+        (L["accessibility"], L["accessibility_text"])
     ]
 
     table = doc.add_table(rows=len(table_rows), cols=2)

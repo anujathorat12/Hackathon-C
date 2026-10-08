@@ -17,6 +17,7 @@ from pptx.oxml.ns import qn
 from pptx.util import Emu, Pt
 
 from ...shared.schemas.template_models import DocumentControlMetadata, TemplateGuidanceProfile
+from ...shared.i18n import labels
 
 TITLE_TYPES = {PP_PLACEHOLDER.TITLE, PP_PLACEHOLDER.CENTER_TITLE, PP_PLACEHOLDER.VERTICAL_TITLE}
 TEXT_TYPES = TITLE_TYPES | {PP_PLACEHOLDER.BODY, PP_PLACEHOLDER.OBJECT, PP_PLACEHOLDER.SUBTITLE}
@@ -389,7 +390,7 @@ def build_deck_in_template(markdown: str, output_path: str, metadata: DocumentCo
         _apply_style(sub_ph, plan.styles.get("cover_sub"))
     for sp in plan.cover_textboxes:
         cover.shapes._spTree.append(sp)
-        _retext_textbox(sp, ["By AGENT-101", metadata.date])
+        _retext_textbox(sp, [labels(metadata.language)["by"], metadata.date])
     _remove_empty_placeholders(cover, keep={title_idx, sub_idx})
     _add_slide_number(cover, plan.cover_layout)
 

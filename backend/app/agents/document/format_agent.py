@@ -54,7 +54,7 @@ class FormatGenerationAgent:
 
         # 1. Prepare Document Control Metadata
         metadata = request.document_control_metadata or DocumentControlMetadata()
-        metadata.document_title = request.title
+        metadata.document_title = request.display_title or request.title
         metadata.file_name = file_name
 
         guidance = request.template_guidance or TemplateGuidanceProfile()

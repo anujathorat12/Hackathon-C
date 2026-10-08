@@ -2,6 +2,7 @@ import os
 from typing import Optional
 import markdown
 from ...shared.schemas.template_models import DocumentControlMetadata, TemplateGuidanceProfile
+from ...shared.i18n import labels
 
 PDF_SAFE_CHARS = {
     "‐": "-", "‑": "-", "‒": "-", "−": "-",
@@ -26,6 +27,7 @@ def build_pdf_deliverable(
         guidance = DEFAULT_CORPORATE_THEME
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    L = labels(metadata.language)
 
     # The PDF's built-in fonts lack some Unicode punctuation LLMs use (non-breaking hyphens, arrows),
     # which would render as empty boxes; swap them for plain equivalents.
@@ -128,18 +130,18 @@ def build_pdf_deliverable(
   <div style="margin-bottom: 30px;">
     <h1 style="border: none; margin-bottom: 2px;">{metadata.document_title}</h1>
     <p style="color: {secondary_hex}; font-size: 10pt; font-weight: bold; margin-top: 0;">
-      VERSION {metadata.version} • {metadata.date}
+      {L["version"].upper()} {metadata.version} • {metadata.date}
     </p>
   </div>
 
   <table class="document-control">
-    <tr><th colspan="2">Document Control</th></tr>
-    <tr><td><strong>Document Title</strong></td><td>{metadata.document_title}</td></tr>
-    <tr><td><strong>File Name</strong></td><td>{metadata.file_name}</td></tr>
-    <tr><td><strong>Version</strong></td><td>{metadata.version}</td></tr>
-    <tr><td><strong>Date</strong></td><td>{metadata.date}</td></tr>
-    <tr><td><strong>Authorship</strong></td><td>{metadata.author}</td></tr>
-    <tr><td><strong>Accessibility</strong></td><td>Automated WCAG 2.2 AA checks: colour contrast, heading order, table headers</td></tr>
+    <tr><th colspan="2">{L["document_control"]}</th></tr>
+    <tr><td><strong>{L["document_title"]}</strong></td><td>{metadata.document_title}</td></tr>
+    <tr><td><strong>{L["file_name"]}</strong></td><td>{metadata.file_name}</td></tr>
+    <tr><td><strong>{L["version"]}</strong></td><td>{metadata.version}</td></tr>
+    <tr><td><strong>{L["date"]}</strong></td><td>{metadata.date}</td></tr>
+    <tr><td><strong>{L["authorship"]}</strong></td><td>{metadata.author}</td></tr>
+    <tr><td><strong>{L["accessibility"]}</strong></td><td>{L["accessibility_text"]}</td></tr>
   </table>
 
   <div style="page-break-after: always;"></div>

@@ -35,7 +35,8 @@ class RevisionAgent:
         )
         revised = llm_service.generate_completion(prompt=prompt, system_prompt=self.SYSTEM_PROMPT, response_format="text")
         revised = re.sub(r"^```(?:markdown|md)?\s*|\s*```$", "", (revised or "").strip())
-        revised = revised.replace("【", "[").replace("】", "]")
+        from app.agents.cognitive.review_agent import tidy_citations
+        revised = tidy_citations(revised)
         return revised
 
     def run(self, markdown: str, instruction: str, section: Optional[str] = None) -> Tuple[str, str]:
