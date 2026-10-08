@@ -29,7 +29,19 @@ class PlanningAgent:
     )
 
     def run(self, title: str, target_format: str, requirements: StructuredRequirements, language: str = "English",
-            source_digest: Optional[str] = None) -> ContentPlan:
+            source_digest: Optional[str] = None, template_guidance: Optional[dict] = None,
+            topic_id: Optional[str] = None) -> ContentPlan:
+        template_context = ""
+        if template_guidance:
+            sections = template_guidance.get("detected_section_hierarchy") or []
+            if sections:
+                template_context = (
+                    f"Reference Template Slide Structure:\n"
+                    f"The template provides these slide themes/sections: {', '.join(sections)}.\n"
+                    f"You MUST align your presentation outline with this corporate structure, adapting the topic '{title}' "
+                    f"across each of these slide themes consistently.\n\n"
+                )
+
         prompt = (
             f"Document Title: {title}\n"
             f"Target Format: {target_format}\n"
@@ -38,8 +50,10 @@ class PlanningAgent:
             f"Deliverables: {', '.join(requirements.key_deliverables)}\n"
             f"Tone: {requirements.tone}\n"
             f"Constraints: {', '.join(requirements.constraints)}\n\n"
+            f"{template_context}"
             f"Generate a multi-section document plan customized for {target_format} format "
-            f"({'6-10 slides, one section per slide' if target_format == 'PPT' else '4-7 sections'}). "
+            f"({'5-8 slides, one section per slide' if target_format == 'PPT' else '4-7 sections'}). "
+            "Ensure the template flow and narrative continuity are maintained across ALL slides, from start to finish. "
             "Every section must be specifically about the document title above. "
             f"Write all headings and key points in {language}."
         )
@@ -51,7 +65,7 @@ class PlanningAgent:
                 "these sources actually cover — do not plan sections (e.g. eligibility, pricing, insurance) "
                 f"that the sources do not mention.\n\nSource documents:\n{source_digest}"
             )
-        data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT)
+        data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT, topic_id=topic_id)
         if not isinstance(data, dict):
             data = {}
 

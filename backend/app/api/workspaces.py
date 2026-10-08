@@ -101,6 +101,8 @@ async def _ws_update(topic_id: str, fields: Dict[str, Any]) -> None:
 
 
 async def _ws_delete(topic_id: str) -> None:
+    from app.services.llm_service import llm_service
+    llm_service.clear_topic_context(topic_id)
     db = get_database()
     if db is not None:
         await db.topic_workspaces.delete_one({"_id": topic_id})
@@ -678,6 +680,133 @@ async def list_deliverables(topic_id: str):
         }
         for f in sorted(topic_dir.iterdir()) if f.is_file()
     ]
+
+
+@router.get("/{topic_id}/deliverable/preview")
+async def get_deliverable_preview(topic_id: str):
+    """
+    Returns structured preview data for the compiled deliverable (.pptx, .docx, etc.)
+    so the UI can render high-fidelity, native document views.
+    """
+    import re
+    topic_dir = OUTPUTS_DIR / topic_id
+    if not topic_dir.is_dir():
+        return {"success": False, "detail": "No deliverables generated yet"}
+
+    files = sorted((f for f in topic_dir.iterdir() if f.is_file()), key=lambda f: f.stat().st_mtime)
+    if not files:
+        return {"success": False, "detail": "No files found"}
+
+    target = files[-1]
+    ext = target.suffix.lower()
+
+    if ext == ".pptx":
+        try:
+            import pptx
+            prs = pptx.Presentation(str(target))
+            slides = []
+            for idx, slide in enumerate(prs.slides):
+                is_cover = (idx == 0)
+                s_data = {
+                    "slide_number": idx + 1,
+                    "is_cover": is_cover,
+                    "title": "",
+                    "subtitle": "",
+                    "pill_badge": "",
+                    "metadata": "",
+                    "cards": [],
+                    "stat_cards": [],
+                    "table": None,
+                    "footer_left": "",
+                    "footer_right": "",
+                }
+                for shape in slide.shapes:
+                    if shape.has_table:
+                        tbl = shape.table
+                        headers = [c.text.strip() for c in tbl.rows[0].cells]
+                        rows = [[c.text.strip() for c in r.cells] for r in tbl.rows[1:]]
+                        s_data["table"] = {"headers": headers, "rows": rows}
+                    elif shape.has_text_frame:
+                        txt = shape.text_frame.text.strip()
+                        if not txt:
+                            continue
+                        if is_cover:
+                            if "AGENT-101" in txt and ("SYSTEM DELIVERABLE" in txt or len(txt) < 40):
+                                s_data["pill_badge"] = txt
+                            elif not s_data["title"] and ("Outline" in txt or "Presentation" in txt or len(txt) < 100):
+                                s_data["title"] = txt
+                            elif "Autonomous" in txt or "Strict Topic" in txt:
+                                s_data["subtitle"] = txt
+                            elif "VERSION" in txt or "AUTHOR" in txt:
+                                s_data["metadata"] = txt
+                            elif not s_data["title"]:
+                                s_data["title"] = txt
+                        else:
+                            if ("SLIDE " in txt and len(txt) <= 10) or txt == "SLIDE":
+                                s_data["footer_right"] = txt
+                            elif "AGENT-101" in txt and len(txt) < 80:
+                                s_data["footer_left"] = txt
+                            elif not s_data["title"] and len(txt) < 80 and "\n" not in txt:
+                                s_data["title"] = txt
+                            else:
+                                paras = [p.text.strip() for p in shape.text_frame.paragraphs if p.text.strip()]
+                                if len(paras) >= 2 and any(re.search(r"^\d", p) for p in paras[1:]):
+                                    s_data["stat_cards"].append({
+                                        "title": paras[0],
+                                        "number": paras[1],
+                                        "desc": paras[2] if len(paras) > 2 else ""
+                                    })
+                                else:
+                                    s_data["cards"].append(txt)
+
+                # Fallback for cover title if missed
+                if is_cover and not s_data["title"]:
+                    for shape in slide.shapes:
+                        if shape.has_text_frame and shape.text_frame.text.strip():
+                            t = shape.text_frame.text.strip()
+                            if t != s_data["pill_badge"] and t != s_data["metadata"]:
+                                s_data["title"] = t
+                                break
+
+                slides.append(s_data)
+
+            templates = await _tpl_list(topic_id)
+            template_guidance = templates[-1].get("guidance") if templates else None
+
+            return {
+                "success": True,
+                "format": "PPT",
+                "file_name": target.name,
+                "file_size_bytes": target.stat().st_size,
+                "slide_count": len(slides),
+                "slides": slides,
+                "template_guidance": template_guidance,
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    elif ext == ".docx":
+        try:
+            import docx
+            doc = docx.Document(str(target))
+            paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+            tables = []
+            for t in doc.tables:
+                rows = [[c.text.strip() for c in r.cells] for r in t.rows]
+                if rows:
+                    tables.append({"headers": rows[0], "rows": rows[1:]})
+            return {
+                "success": True,
+                "format": "DOCX",
+                "file_name": target.name,
+                "file_size_bytes": target.stat().st_size,
+                "paragraphs": paragraphs,
+                "tables": tables,
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    return {"success": True, "format": ext.lstrip(".").upper(), "file_name": target.name}
 
 
 @router.get("/{topic_id}/export")

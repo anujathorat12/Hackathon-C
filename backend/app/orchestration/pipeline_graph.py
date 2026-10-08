@@ -8,6 +8,7 @@ from app.agents.cognitive.planning_agent import planning_agent, ContentPlan
 from app.agents.cognitive.research_agent import research_agent, KnowledgePackage
 from app.agents.cognitive.generation_agent import generation_agent
 from app.agents.cognitive.review_agent import review_agent, ReviewChangelog
+from app.services.llm_service import llm_service
 
 class PipelineGraphState(TypedDict):
     topic_id: str
@@ -82,19 +83,25 @@ class PipelineGraph:
         return digest[:max_chars]
 
     def execute_step(self, step_name: str, state: PipelineGraphState) -> PipelineGraphState:
-        """Executes a single node in the graph and updates state."""
+        """Executes a single node in the graph and updates state with cross-agent context synchronization."""
         new_state = dict(state)
-        
+        topic_id = state.get("topic_id", "")
+        if topic_id:
+            llm_service.sync_workspace_state(topic_id, new_state)
+
         if step_name == "Agent 1: Requirement Analysis":
             reqs = requirement_agent.run(
                 title=state["title"],
                 description=state["description"],
-                user_instructions=state.get("user_instructions")
+                user_instructions=state.get("user_instructions"),
+                topic_id=topic_id
             )
             new_state["structured_requirements"] = reqs.model_dump()
             new_state["current_step"] = "Requirement Analysis Complete"
 
         elif step_name == "Agent 2: Planning":
+            if not new_state.get("template_guidance") and state.get("template_file_path"):
+                new_state["template_guidance"] = self.load_template_guidance(state.get("template_file_path"))
             reqs = StructuredRequirements(**(state.get("structured_requirements") or {}))
             plan = planning_agent.run(
                 title=state["title"],
@@ -102,6 +109,8 @@ class PipelineGraph:
                 requirements=reqs,
                 language=state.get("language") or "English",
                 source_digest=self._source_digest(state["topic_id"]),
+                template_guidance=new_state.get("template_guidance"),
+                topic_id=topic_id
             )
             new_state["content_plan"] = plan.model_dump()
             new_state["current_step"] = "Planning Complete"
@@ -125,7 +134,7 @@ class PipelineGraph:
             plan = ContentPlan(**(state.get("content_plan") or {}))
             knowledge = KnowledgePackage(**(state.get("knowledge_package") or {}))
             guidance = state.get("template_guidance")
-            
+
             draft = generation_agent.run(
                 plan=plan,
                 knowledge=knowledge,
@@ -133,18 +142,22 @@ class PipelineGraph:
                 requirements=state.get("structured_requirements"),
                 user_instructions=state.get("user_instructions"),
                 language=state.get("language") or "English",
+                topic_id=topic_id
             )
             new_state["draft_content"] = draft
             new_state["current_step"] = "Content Generation Complete"
 
         elif step_name == "Agent 6: Content Review":
             draft = state.get("draft_content") or f"# {state['title']}\n\nDraft content standard preview."
-            refined_content, changelog = review_agent.run(draft, state.get("language") or "English")
-            
+            refined_content, changelog = review_agent.run(draft, state.get("language") or "English", topic_id=topic_id)
+
             new_state["refined_content"] = refined_content
             new_state["review_changelog"] = changelog.model_dump()
             new_state["current_step"] = "Content Review Complete"
             new_state["status"] = "WAITING_FOR_REVIEW"
+
+        if topic_id:
+            llm_service.sync_workspace_state(topic_id, new_state)
 
         return new_state
 

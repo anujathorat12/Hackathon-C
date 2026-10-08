@@ -92,7 +92,7 @@ class ResearchAgent:
             "source (organisation and report or year); never invent URLs or statistics you are unsure of."
         )
 
-        data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT)
+        data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT, topic_id=topic_id)
 
         try:
             raw_facts = data.get("key_facts", [])

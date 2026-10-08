@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 from pydantic import BaseModel, Field
 from app.services.llm_service import llm_service
 
@@ -92,7 +92,7 @@ class ReviewAgent:
     def count_words(text: str) -> int:
         return len(re.findall(r"\b\w+\b", text))
 
-    def run(self, draft_content: str, language: str = "English") -> Tuple[str, ReviewChangelog]:
+    def run(self, draft_content: str, language: str = "English", topic_id: Optional[str] = None) -> Tuple[str, ReviewChangelog]:
         # Flesch-Kincaid is only defined for English; other languages report 0 (shown as n/a).
         english = language.lower().startswith("english")
         initial_grade, long_sentences_count = self.compute_readability_metrics(draft_content)
@@ -109,11 +109,19 @@ class ReviewAgent:
             "Output ONLY the refined markdown document."
         )
 
-        refined_content = llm_service.generate_completion(prompt=prompt, system_prompt=self.SYSTEM_PROMPT, response_format="text")
+        refined_content = llm_service.generate_completion(
+            prompt=prompt,
+            system_prompt=self.SYSTEM_PROMPT,
+            response_format="text",
+            topic_id=topic_id
+        )
 
         if not refined_content or len(refined_content.strip()) < 50:
             refined_content = draft_content
         refined_content = tidy_citations(refined_content)
+
+        # Strip any meta instructions or prompt echoes
+        refined_content = re.sub(r"(?i)\*?add\s+(?:logo|branding|image|background).*?(?:template|palette|ppt)\.?\*?\n?", "", refined_content)
 
         # Measure the refined text against the draft.
         final_grade, remaining_long = self.compute_readability_metrics(refined_content)

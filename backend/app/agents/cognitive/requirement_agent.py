@@ -21,7 +21,7 @@ class RequirementAgent:
         "Output a JSON object containing: 'objective', 'target_audience', 'key_deliverables', 'tone', and 'constraints'."
     )
 
-    def run(self, title: str, description: str, user_instructions: Optional[str] = None) -> StructuredRequirements:
+    def run(self, title: str, description: str, user_instructions: Optional[str] = None, topic_id: Optional[str] = None) -> StructuredRequirements:
         prompt = (
             f"Topic/Title: {title}\n"
             f"Description: {description}\n"
@@ -29,7 +29,7 @@ class RequirementAgent:
             "Analyze audience persona, extract core objectives, list key deliverables, and flag constraints."
         )
 
-        data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT)
+        data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT, topic_id=topic_id)
         if not isinstance(data, dict):
             data = {}
 

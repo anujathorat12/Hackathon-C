@@ -36,6 +36,7 @@ def parse_pptx_template(file_path: str) -> TemplateGuidanceProfile:
         text_hex = "#222222"
 
         found_backgrounds: List[str] = []
+        detected_sections: List[str] = []
         found_accents: List[str] = []
         has_light_text: bool = False
 
@@ -47,6 +48,7 @@ def parse_pptx_template(file_path: str) -> TemplateGuidanceProfile:
 
         # 2. Inspect Sample Shapes and Text Frames for Fonts, Backgrounds, and Colors
         for slide in prs.slides:
+            title_found = False
             # Check slide background fill
             try:
                 if hasattr(slide, 'background') and slide.background and slide.background.fill:
@@ -87,6 +89,13 @@ def parse_pptx_template(file_path: str) -> TemplateGuidanceProfile:
                 # Check text formatting for primary color, light text, and font family
                 if shape.has_text_frame:
                     for paragraph in shape.text_frame.paragraphs:
+                        # Slide section structure (first short line per slide), used by planning to follow the template's flow
+                        txt = paragraph.text.strip()
+                        if txt and len(txt) <= 70 and not txt.isdigit() and not title_found:
+                            if txt not in detected_sections and not txt.startswith("By ") and len(txt) > 2:
+                                detected_sections.append(txt)
+                                title_found = True
+
                         if paragraph.font.name:
                             heading_font = paragraph.font.name
                         try:
@@ -168,7 +177,7 @@ def parse_pptx_template(file_path: str) -> TemplateGuidanceProfile:
                 "table_zebra_shading_hex": "#F4F7FA",
                 "callout_box_style": "left_accent_border"
             },
-            "detected_section_hierarchy": []
+            "detected_section_hierarchy": detected_sections
         }
 
         return normalize_guidance(raw_data)

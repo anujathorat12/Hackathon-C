@@ -110,10 +110,13 @@ def build_pptx_deliverable(
     # =========================================================================
     slide1 = prs.slides.add_slide(blank_layout)
 
-    # 1. Dark Background Canvas
+    # 1. Dark Background Canvas (Inherited from template primary brand color)
     bg_shape = slide1.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.33), Inches(7.5))
     bg_shape.fill.solid()
-    bg_shape.fill.fore_color.rgb = pptx_hex_to_rgb("#0A192F")
+    # The cover title is white, so only use the brand colour when it is dark enough to read on.
+    p_clean = primary_hex.lstrip('#')
+    p_lum = (0.2126 * int(p_clean[0:2], 16) + 0.7152 * int(p_clean[2:4], 16) + 0.0722 * int(p_clean[4:6], 16)) if len(p_clean) == 6 else 255
+    bg_shape.fill.fore_color.rgb = primary_rgb if p_lum < 110 else pptx_hex_to_rgb("#0A192F")
     bg_shape.line.fill.background()
 
     # 2. Left Accent Vertical Brand Pillar
@@ -122,8 +125,8 @@ def build_pptx_deliverable(
     pillar.fill.fore_color.rgb = accent_rgb
     pillar.line.fill.background()
 
-    # 3. Pill Badge (System ID)
-    badge = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.2), Inches(1.2), Inches(3.8), Inches(0.45))
+    # 3. Pill Badge (System ID & Template Source)
+    badge = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.2), Inches(1.2), Inches(4.5), Inches(0.45))
     badge.fill.solid()
     badge.fill.fore_color.rgb = pptx_hex_to_rgb("#172A45")
     badge.line.color.rgb = accent_rgb
@@ -153,14 +156,14 @@ def build_pptx_deliverable(
     s_tf.word_wrap = True
     sp = s_tf.paragraphs[0]
     sub_content = metadata.author
-    apply_text_styling(sp, sub_content, font_name=font_body, font_size_pt=15, color_hex="#8892B0", bold=False)
+    apply_text_styling(sp, sub_content, font_name=font_body, font_size_pt=15, color_hex="#A0AEC0", bold=False)
 
     # 6. Bottom Metadata Strip
     meta_box = slide1.shapes.add_textbox(Inches(1.2), Inches(6.2), Inches(11.0), Inches(0.6))
     m_tf = meta_box.text_frame
     mp = m_tf.paragraphs[0]
     meta_text = f"{L['version']} {metadata.version}   |   {metadata.date}"
-    apply_text_styling(mp, meta_text, font_name=font_body, font_size_pt=10, color_hex="#64FFDA", bold=True)
+    apply_text_styling(mp, meta_text, font_name=font_body, font_size_pt=10, color_hex=accent_hex, bold=True)
 
     # Determine dark vs light mode for content canvas
     bg_hex = guidance.color_palette.background_hex or "#FBFDFF"
@@ -194,11 +197,17 @@ def build_pptx_deliverable(
         canvas.fill.fore_color.rgb = pptx_hex_to_rgb(canvas_bg_hex)
         canvas.line.fill.background()
 
-        # 2. Extract Slide Title
-        slide_title = "Executive Architecture"
+        # 2. Extract Slide Title & Content (filter meta placeholders and dividers)
+        slide_title = f"Slide {slide_idx}"
         content_lines: List[str] = []
 
         for line in lines:
+            # Skip horizontal rules and meta placeholders
+            if line in ["---", "***", "___"]:
+                continue
+            if re.search(r"(?i)add\s+(?:logo|branding|image|background)", line):
+                continue
+
             if line.startswith('# ') or line.startswith('## ') or line.startswith('### '):
                 slide_title = line.lstrip('# ').strip()
             elif line.startswith('* ') or line.startswith('- '):

@@ -35,6 +35,9 @@ async def run_pipeline_async(
     Yields telemetry events (PipelineProgressEvent) for the web UI / CLI runner.
     """
     active_topic_id = topic_id or str(uuid.uuid4())
+    initial_guidance = None
+    if template_file_path:
+        initial_guidance = pipeline_graph.load_template_guidance(template_file_path)
 
     state: PipelineGraphState = {
         "topic_id": active_topic_id,
@@ -46,7 +49,7 @@ async def run_pipeline_async(
         "language": language,
         "structured_requirements": None,
         "content_plan": None,
-        "template_guidance": None,
+        "template_guidance": initial_guidance,
         "knowledge_package": None,
         "draft_content": None,
         "refined_content": None,

@@ -5,6 +5,10 @@ import FormatPreview from './FormatPreview'
 import { RunValue } from './ValueMeter'
 import AskAI from './AskAI'
 import { FORMATS } from '../constants'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
+import SlideDeckPreview from './SlideDeckPreview'
+import WordDocumentPreview from './WordDocumentPreview'
 
 function SourceCheck({ check }) {
   const issues = check.unmatched.length + check.uncited_figures.length
@@ -30,9 +34,17 @@ function SourceCheck({ check }) {
   )
 }
 
-export default function ReviewStudio({ topicId, format, content, metrics = {}, status, onApprove }) {
+export default function ReviewStudio({ topicId, format, content, metrics = {}, status, onApprove, title, deliverable, template }) {
   const fmt = FORMATS[format] || FORMATS.DOCX
   const [tab, setTab] = useState('preview')
+  // Exact = the compiled file itself; interactive/outline = quick in-browser views of the draft.
+  const views = [
+    { key: 'exact', label: 'Exact file', icon: 'file', hint: 'The real file you will download' },
+    ...(format === 'PPT' ? [{ key: 'interactive', label: 'Interactive slides', icon: 'layers', hint: 'Instant slide view in your template colours' }] : []),
+    ...(format === 'DOCX' ? [{ key: 'interactive', label: 'Reading view', icon: 'eye', hint: 'Instant page view of the draft' }] : []),
+    ...(format === 'PPT' ? [{ key: 'outline', label: 'Text outline', icon: 'type', hint: 'The draft as structured text' }] : []),
+  ]
+  const [view, setView] = useState('exact')
   const [draft, setDraft] = useState(content)
   const [preview, setPreview] = useState(null)
   const [previewing, setPreviewing] = useState(false)
@@ -45,6 +57,7 @@ export default function ReviewStudio({ topicId, format, content, metrics = {}, s
   // The preview reflects the markdown it was built from; edits after that make it stale.
   const stale = !!preview && preview.content_markdown !== draft
 
+  const outlineHtml = useMemo(() => DOMPurify.sanitize(marked.parse(draft || '')), [draft])
   const words = useMemo(() => (draft.trim() ? draft.trim().split(/\s+/).length : 0), [draft])
   const sections = useMemo(() => (draft.match(/^#{1,2}\s/gm) || []).length, [draft])
 
@@ -146,9 +159,29 @@ export default function ReviewStudio({ topicId, format, content, metrics = {}, s
         </div>
       )}
 
-      <div className={`doc-frame ${tab === 'preview' ? `fp-frame fp-${format}` : ''}`}>
+      {tab === 'preview' && views.length > 1 && (
+        <div className="view-switch" role="tablist" aria-label="Preview view">
+          {views.map((v) => (
+            <button key={v.key} role="tab" aria-selected={view === v.key} className={view === v.key ? 'on' : ''}
+              onClick={() => setView(v.key)} title={v.hint}>
+              <Icon name={v.icon} size={13} /> {v.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className={`doc-frame ${tab === 'preview' && view === 'exact' ? `fp-frame fp-${format}` : ''}`}>
         {tab === 'preview' ? (
-          <FormatPreview preview={preview} loading={previewing} error={previewError} format={format} onRetry={refresh} />
+          view === 'interactive' && format === 'PPT' ? (
+            <SlideDeckPreview markdown={draft} title={title} topicId={topicId} deliverable={deliverable}
+              templateGuidance={template?.guidance} status={status} />
+          ) : view === 'interactive' && format === 'DOCX' ? (
+            <WordDocumentPreview markdown={draft} title={title} deliverable={deliverable} />
+          ) : view === 'outline' ? (
+            <article className="doc" dangerouslySetInnerHTML={{ __html: outlineHtml }} />
+          ) : (
+            <FormatPreview preview={preview} loading={previewing} error={previewError} format={format} onRetry={refresh} />
+          )
         ) : (
           <textarea className="doc-editor" value={draft} onChange={(e) => setDraft(e.target.value)}
             spellCheck="true" aria-label="Document content (markdown)" />

@@ -209,6 +209,9 @@ export default function Workspace({ ws, onStatus }) {
             content={content}
             metrics={reviewEvent?.payload}
             status={status}
+            title={ws.title}
+            deliverable={deliverable}
+            template={template}
             onApprove={approve}
           />
         </div>
@@ -216,7 +219,7 @@ export default function Workspace({ ws, onStatus }) {
 
       {deliverable && status === 'COMPLETED' && (
         <div ref={vaultRef}>
-          <DeliverableVault deliverable={deliverable} versions={versions} />
+          <DeliverableVault deliverable={deliverable} versions={versions} topicId={ws.id} refinedContent={content} title={ws.title} />
         </div>
       )}
     </div>
