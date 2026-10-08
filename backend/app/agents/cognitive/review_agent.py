@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 from pydantic import BaseModel, Field
 from app.services.llm_service import llm_service
 
@@ -58,7 +58,7 @@ class ReviewAgent:
         long_sentences = sum(1 for s in sentences if len(s.split()) > 22)
         return fk_grade, long_sentences
 
-    def run(self, draft_content: str) -> Tuple[str, ReviewChangelog]:
+    def run(self, draft_content: str, topic_id: Optional[str] = None) -> Tuple[str, ReviewChangelog]:
         # Compute baseline metrics
         initial_grade, long_sentences_count = self.compute_readability_metrics(draft_content)
 
@@ -71,7 +71,12 @@ class ReviewAgent:
             "Output ONLY the refined markdown document."
         )
 
-        refined_content = llm_service.generate_completion(prompt=prompt, system_prompt=self.SYSTEM_PROMPT, response_format="text")
+        refined_content = llm_service.generate_completion(
+            prompt=prompt,
+            system_prompt=self.SYSTEM_PROMPT,
+            response_format="text",
+            topic_id=topic_id
+        )
 
         if not refined_content or len(refined_content.strip()) < 50:
             refined_content = draft_content

@@ -23,7 +23,8 @@ class GenerationAgent:
     )
 
     def run(self, plan: ContentPlan, knowledge: KnowledgePackage, template_guidance: Optional[Dict[str, Any]] = None,
-            requirements: Optional[Dict[str, Any]] = None, user_instructions: Optional[str] = None) -> str:
+            requirements: Optional[Dict[str, Any]] = None, user_instructions: Optional[str] = None,
+            topic_id: Optional[str] = None) -> str:
         guidance_str = ""
         if template_guidance:
             sections = template_guidance.get("detected_section_hierarchy") or []
@@ -61,7 +62,12 @@ class GenerationAgent:
             "Output only the final clean markdown."
         )
 
-        draft_content = llm_service.generate_completion(prompt=prompt, system_prompt=self.SYSTEM_PROMPT, response_format="text")
+        draft_content = llm_service.generate_completion(
+            prompt=prompt,
+            system_prompt=self.SYSTEM_PROMPT,
+            response_format="text",
+            topic_id=topic_id
+        )
 
         # Strip planning annotations such as "(≈ 200 words)" if the model echoes them into headings.
         draft_content = re.sub(r"\s*\*?\((?:≈|~|approx\.?)?\s*\d+\s*words?\)\*?", "", draft_content)

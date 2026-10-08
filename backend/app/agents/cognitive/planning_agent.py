@@ -29,7 +29,7 @@ class PlanningAgent:
     )
 
     def run(self, title: str, target_format: str, requirements: StructuredRequirements,
-            template_guidance: Optional[dict] = None) -> ContentPlan:
+            template_guidance: Optional[dict] = None, topic_id: Optional[str] = None) -> ContentPlan:
         template_context = ""
         if template_guidance:
             sections = template_guidance.get("detected_section_hierarchy") or []
@@ -55,7 +55,7 @@ class PlanningAgent:
             "Ensure the template flow and narrative continuity are maintained across ALL slides, from start to finish. "
             "Every section must be specifically about the document title above."
         )
-        data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT)
+        data = llm_service.generate_json(prompt=prompt, system_prompt=self.SYSTEM_PROMPT, topic_id=topic_id)
         if not isinstance(data, dict):
             data = {}
 

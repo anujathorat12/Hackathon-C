@@ -78,6 +78,8 @@ async def _ws_update(topic_id: str, fields: Dict[str, Any]) -> None:
 
 
 async def _ws_delete(topic_id: str) -> None:
+    from app.services.llm_service import llm_service
+    llm_service.clear_topic_context(topic_id)
     db = get_database()
     if db is not None:
         await db.topic_workspaces.delete_one({"_id": topic_id})
