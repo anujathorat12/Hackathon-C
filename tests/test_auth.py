@@ -8,20 +8,20 @@ client = TestClient(app)
 def test_auth_default_admin_login():
     """Default seeded admin should be able to log in."""
     res = client.post("/api/v1/auth/login", json={
-        "email": "admin@agent101.ai",
+        "email": "admin@contentgenie.ai",
         "password": "admin123"
     })
     assert res.status_code == 200, res.text
     data = res.json()
     assert "token" in data
     assert data["user"]["role"] == "admin"
-    assert data["user"]["email"] == "admin@agent101.ai"
+    assert data["user"]["email"] == "admin@contentgenie.ai"
 
 
 def test_auth_default_user_login():
     """Default seeded user should be able to log in."""
     res = client.post("/api/v1/auth/login", json={
-        "email": "user@agent101.ai",
+        "email": "user@contentgenie.ai",
         "password": "user123"
     })
     assert res.status_code == 200, res.text
@@ -33,7 +33,7 @@ def test_auth_default_user_login():
 def test_auth_login_invalid_credentials():
     """Bad credentials should return 401."""
     res = client.post("/api/v1/auth/login", json={
-        "email": "admin@agent101.ai",
+        "email": "admin@contentgenie.ai",
         "password": "wrongpassword"
     })
     assert res.status_code == 401
@@ -76,14 +76,14 @@ def test_auth_rbac_admin_vs_user():
     """Regular user cannot access admin /users directory, but admin can."""
     # User token
     u_res = client.post("/api/v1/auth/login", json={
-        "email": "user@agent101.ai",
+        "email": "user@contentgenie.ai",
         "password": "user123"
     })
     user_token = u_res.json()["token"]
 
     # Admin token
     a_res = client.post("/api/v1/auth/login", json={
-        "email": "admin@agent101.ai",
+        "email": "admin@contentgenie.ai",
         "password": "admin123"
     })
     admin_token = a_res.json()["token"]
@@ -102,7 +102,7 @@ def test_auth_rbac_admin_vs_user():
 def test_auth_logout():
     """Logging out should invalidate the session."""
     login_res = client.post("/api/v1/auth/login", json={
-        "email": "user@agent101.ai",
+        "email": "user@contentgenie.ai",
         "password": "user123"
     })
     token = login_res.json()["token"]
@@ -131,14 +131,14 @@ def test_admin_analytics_and_health_access():
     """Admin can fetch system analytics & token metrics, while standard user cannot."""
     # User token
     u_res = client.post("/api/v1/auth/login", json={
-        "email": "user@agent101.ai",
+        "email": "user@contentgenie.ai",
         "password": "user123"
     })
     user_token = u_res.json()["token"]
 
     # Admin token
     a_res = client.post("/api/v1/auth/login", json={
-        "email": "admin@agent101.ai",
+        "email": "admin@contentgenie.ai",
         "password": "admin123"
     })
     admin_token = a_res.json()["token"]
@@ -160,7 +160,7 @@ def test_admin_analytics_and_health_access():
 def test_admin_user_lifecycle_and_safety_checks():
     """Admin can provision users, update roles, reset passwords, and safety rules prevent self-destruction."""
     a_res = client.post("/api/v1/auth/login", json={
-        "email": "admin@agent101.ai",
+        "email": "admin@contentgenie.ai",
         "password": "admin123"
     })
     admin_token = a_res.json()["token"]
@@ -169,7 +169,7 @@ def test_admin_user_lifecycle_and_safety_checks():
     # 1. Admin creates user
     create_res = client.post("/api/v1/auth/admin/users", json={
         "username": "managed_dev",
-        "email": "managed@agent101.ai",
+        "email": "managed@contentgenie.ai",
         "password": "temporarypassword123",
         "full_name": "Managed Developer",
         "role": "user"

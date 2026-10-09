@@ -23,8 +23,8 @@ export default function AuthModal({ initialMode = 'login', onClose, onAuthSucces
     setError(null)
     setLoading(true)
     const creds = demoRole === 'admin'
-      ? { email: 'admin@agent101.ai', password: 'admin123' }
-      : { email: 'user@agent101.ai', password: 'user123' }
+      ? { email: 'admin@contentgenie.ai', password: 'admin123' }
+      : { email: 'user@contentgenie.ai', password: 'user123' }
     setEmail(creds.email)
     setPassword(creds.password)
 
@@ -99,10 +99,10 @@ export default function AuthModal({ initialMode = 'login', onClose, onAuthSucces
                 </linearGradient>
               </defs>
               <path d="M16 2 28.1 9v14L16 30 3.9 23V9z" fill="url(#authbg)" />
-              <path d="M11 21.5 16 10l5 11.5M12.8 17.5h6.4" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M20.6 11.6a6.2 6.2 0 1 0 0 8.8" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
             </svg>
             <div>
-              <div className="auth-title">AGENT<span>-101</span></div>
+              <div className="auth-title">Content<span>Genie</span></div>
               <div className="auth-sub">Agentic Content Studio</div>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function AuthModal({ initialMode = 'login', onClose, onAuthSucces
             <input
               type={mode === 'register' ? 'email' : 'text'}
               className="input"
-              placeholder={mode === 'login' ? 'admin@agent101.ai or username' : 'name@company.com'}
+              placeholder={mode === 'login' ? 'admin@contentgenie.ai or username' : 'name@company.com'}
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -226,7 +226,7 @@ export default function AuthModal({ initialMode = 'login', onClose, onAuthSucces
                 disabled={loading}
                 title="1-Click Sign In as Administrator"
               >
-                🛡️ Demo Admin (admin@agent101.ai)
+                🛡️ Demo Admin (admin@contentgenie.ai)
               </button>
               <button
                 type="button"
@@ -235,7 +235,7 @@ export default function AuthModal({ initialMode = 'login', onClose, onAuthSucces
                 disabled={loading}
                 title="1-Click Sign In as Standard User"
               >
-                👤 Demo User (user@agent101.ai)
+                👤 Demo User (user@contentgenie.ai)
               </button>
             </div>
           </div>

@@ -11,7 +11,7 @@ export default function EmptyState({ onPreset, onNew, offline, stats }) {
           From a one-line brief to a <span className="grad-text">boardroom-ready</span> document.
         </h1>
         <p className="lede">
-          AGENT-101 plans, researches, writes, reviews and compiles native PowerPoint, Word, PDF and Markdown
+          ContentGenie plans, researches, writes, reviews and compiles native PowerPoint, Word, PDF and Markdown
           deliverables that match your brand template, with automated accessibility checks. You review and approve before anything is compiled.
         </p>
         <div className="hero-actions">

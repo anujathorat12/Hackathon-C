@@ -100,7 +100,7 @@ This architecture brief outlines the deployment of autonomous multi-agent system
             file_name="ClinicalHealthcare_SystemDeliverable_v1.0.docx",
             version="1.0 (Final System Specification)",
             date="30 September 2026",
-            author="Autonomous AI Multi-Agent Platform (AGENT-101)"
+            author="Autonomous AI Multi-Agent Platform (ContentGenie)"
         ),
         output_directory=output_dir
     )
@@ -126,7 +126,7 @@ This architecture brief outlines the deployment of autonomous multi-agent system
             file_name="ClinicalMultiAgent_Presentation_v1.0.pptx",
             version="1.0 (Executive Pitch)",
             date="30 September 2026",
-            author="Autonomous AI Multi-Agent Platform (AGENT-101)"
+            author="Autonomous AI Multi-Agent Platform (ContentGenie)"
         ),
         output_directory=output_dir
     )

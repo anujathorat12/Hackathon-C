@@ -1,4 +1,4 @@
-# AGENT-101 — Agentic Content Studio
+# ContentGenie — Agentic Content Studio
 
 > **Multi-Agent Content Generation System — Hackathon Project**
 > From a one-line brief (and, optionally, your own documents and brand template) to a native, brand-styled
@@ -63,8 +63,8 @@ The system includes pre-seeded accounts for immediate review:
 
 | Role | Email | Password | Access Privileges |
 |---|---|---|---|
-| **System Admin** | `admin@agent101.ai` | `admin123` | Full studio access + Admin Console (telemetry, token costs, user management) |
-| **Studio Creator** | `user@agent101.ai` | `user123` | Topic workspaces, template ingestion, pipeline runs, deliverables |
+| **System Admin** | `admin@contentgenie.ai` | `admin123` | Full studio access + Admin Console (telemetry, token costs, user management) |
+| **Studio Creator** | `user@contentgenie.ai` | `user123` | Topic workspaces, template ingestion, pipeline runs, deliverables |
 
 > **Note:** Public registration automatically provisions `user` role. Public admin registration is strictly blocked by RBAC security policies.
 
@@ -113,7 +113,7 @@ The repo ships a `Dockerfile` (builds the UI and serves everything on one port) 
 2. Enter `GROQ_API_KEY` and `MONGODB_URI` when prompted (in MongoDB Atlas → Network Access, allow `0.0.0.0/0`).
 3. Open the URL Render gives you and click **Share** in the header for a scannable QR code.
 
-Or anywhere with Docker: `docker build -t agent-101 . && docker run -p 8000:8000 --env-file backend/.env agent-101`.
+Or anywhere with Docker: `docker build -t contentgenie . && docker run -p 8000:8000 --env-file backend/.env contentgenie`.
 On free hosting, uploaded files and generated documents are kept until the service restarts; topics and history live in Atlas.
 
 ## 🧪 Tests

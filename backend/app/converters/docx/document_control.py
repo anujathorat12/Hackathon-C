@@ -20,7 +20,7 @@ def insert_document_control_page(
 ):
     """
     Inserts a standardized Page 1 Document Control Table and cover title
-    as mandated by the AGENT-101 Style Guide.
+    as mandated by the ContentGenie Style Guide.
     """
     primary_rgb = hex_to_rgb(guidance.color_palette.primary_hex)
     primary_hex = guidance.color_palette.primary_hex.lstrip('#')

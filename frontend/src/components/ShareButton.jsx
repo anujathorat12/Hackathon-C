@@ -47,7 +47,7 @@ export default function ShareButton() {
             <div className="modal-head">
               <div>
                 <span className="eyebrow"><Icon name="spark" size={14} /> Try it yourself</span>
-                <h2 id="share-title">Scan to open AGENT-101</h2>
+                <h2 id="share-title">Scan to open ContentGenie</h2>
               </div>
               <button className="icon-btn" onClick={() => setOpen(false)} aria-label="Close"><Icon name="x" /></button>
             </div>

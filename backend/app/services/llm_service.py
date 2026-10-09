@@ -102,7 +102,7 @@ class LLMService:
                     **_http_client_kwargs(),
                     api_key=settings.OPENROUTER_API_KEY,
                     base_url=settings.OPENROUTER_BASE_URL,
-                    default_headers={"HTTP-Referer": "http://localhost:8000", "X-Title": "AGENT-101 Studio"},
+                    default_headers={"HTTP-Referer": "http://localhost:8000", "X-Title": "ContentGenie Studio"},
                     timeout=45,
                     max_retries=1
                 )

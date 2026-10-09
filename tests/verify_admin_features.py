@@ -40,7 +40,7 @@ user_token = res.get('token')
 
 # 3. Demo Admin login succeeds
 status, res = req(f'{BASE}/api/v1/auth/login', 'POST', {
-    'email': 'admin@agent101.ai',
+    'email': 'admin@contentgenie.ai',
     'password': 'admin123'
 })
 print('3. Demo Admin login succeeds:', status == 200, res.get('user', {}).get('role'))
@@ -49,7 +49,7 @@ admin_id = res.get('user', {}).get('id')
 
 # 4. Demo User login succeeds
 status, res = req(f'{BASE}/api/v1/auth/login', 'POST', {
-    'email': 'user@agent101.ai',
+    'email': 'user@contentgenie.ai',
     'password': 'user123'
 })
 print('4. Demo User login succeeds:', status == 200, res.get('user', {}).get('role'))

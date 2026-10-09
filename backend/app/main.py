@@ -10,7 +10,7 @@ from app.api.workspaces import router as workspaces_router
 from app.api.auth import router as auth_router
 
 app = FastAPI(
-    title="AGENT-101 | Agentic Flow API",
+    title="ContentGenie | Agentic Flow API",
     description="Multi-Agent Content Generation System",
     version="1.0.0"
 )

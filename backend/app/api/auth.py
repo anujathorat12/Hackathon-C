@@ -40,14 +40,14 @@ def _seed_initial_users():
     defaults = [
         {
             "username": "admin",
-            "email": "admin@agent101.ai",
+            "email": "admin@contentgenie.ai",
             "full_name": "System Administrator (Demo)",
             "role": "admin",
             "password": "admin123"
         },
         {
             "username": "demo_user",
-            "email": "user@agent101.ai",
+            "email": "user@contentgenie.ai",
             "full_name": "Studio Creator (Demo)",
             "role": "user",
             "password": "user123"

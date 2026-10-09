@@ -30,7 +30,7 @@ export default function WordDocumentPreview({ markdown = '', title = 'Executive 
         <section className="word-page word-cover-page">
           <div className="word-page-header">
             <span>DOCUMENT CONTROL SPECIFICATION</span>
-            <span>SYSTEM ID: AGENT-101</span>
+            <span>SYSTEM ID: ContentGenie</span>
           </div>
 
           <div className="word-cover-body">
@@ -65,7 +65,7 @@ export default function WordDocumentPreview({ markdown = '', title = 'Executive 
                 </tr>
                 <tr>
                   <th>Author</th>
-                  <td>Autonomous Multi-Agent AI System (AGENT-101)</td>
+                  <td>Autonomous Multi-Agent AI System (ContentGenie)</td>
                 </tr>
               </tbody>
             </table>
@@ -100,7 +100,7 @@ export default function WordDocumentPreview({ markdown = '', title = 'Executive 
           </div>
 
           <div className="word-page-footer">
-            <span>CONFIDENTIAL // AGENT-101</span>
+            <span>CONFIDENTIAL // ContentGenie</span>
             <span>Page 1 of Executive Report</span>
           </div>
         </section>
@@ -109,13 +109,13 @@ export default function WordDocumentPreview({ markdown = '', title = 'Executive 
         <section className="word-page word-content-page">
           <div className="word-page-header">
             <span>{title}</span>
-            <span>AGENT-101 DELIVERABLE</span>
+            <span>ContentGenie DELIVERABLE</span>
           </div>
 
           <article className="word-article-content" dangerouslySetInnerHTML={{ __html: html }} />
 
           <div className="word-page-footer">
-            <span>CONFIDENTIAL // AGENT-101</span>
+            <span>CONFIDENTIAL // ContentGenie</span>
             <span>Document Content</span>
           </div>
         </section>

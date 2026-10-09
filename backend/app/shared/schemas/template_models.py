@@ -39,7 +39,7 @@ class DocumentControlMetadata(BaseModel):
     file_name: str = "Deliverable_v1.0"
     version: str = "1.0"
     date: str = Field(default_factory=lambda: datetime.date.today().strftime("%d %B %Y"))
-    author: str = "Prepared with AGENT-101 (AI-generated, human-reviewed)"
+    author: str = "Prepared with ContentGenie (AI-generated, human-reviewed)"
     language: str = "English"  # labels on cover/control pages are rendered in this language
 
 class DocumentCompileRequest(BaseModel):

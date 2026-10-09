@@ -8,7 +8,7 @@ export default function Header({ health, user, onHome, onOpenAuth, onOpenAdmin, 
 
   return (
     <header className="header">
-      <button className="brand" onClick={onHome} aria-label="AGENT-101 home">
+      <button className="brand" onClick={onHome} aria-label="ContentGenie home">
         <div className="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 32 32" width="34" height="34">
             <defs>
@@ -18,11 +18,11 @@ export default function Header({ health, user, onHome, onOpenAuth, onOpenAdmin, 
               </linearGradient>
             </defs>
             <path d="M16 2 28.1 9v14L16 30 3.9 23V9z" fill="url(#brandg)" />
-            <path d="M11 21.5 16 10l5 11.5M12.8 17.5h6.4" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M20.6 11.6a6.2 6.2 0 1 0 0 8.8" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
           </svg>
         </div>
         <div>
-          <div className="brand-name">AGENT<span>-101</span></div>
+          <div className="brand-name">Content<span>Genie</span></div>
           <div className="brand-sub">Agentic Content Studio</div>
         </div>
       </button>

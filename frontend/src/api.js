@@ -3,12 +3,12 @@ const BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '')
 const WS_ROOT = '/api/v1/workspaces'
 const AUTH_ROOT = '/api/v1/auth'
 
-export const getToken = () => localStorage.getItem('agent101_token')
+export const getToken = () => localStorage.getItem('contentgenie_token')
 export const setToken = (t) => {
   if (t) {
-    localStorage.setItem('agent101_token', t)
+    localStorage.setItem('contentgenie_token', t)
   } else {
-    localStorage.removeItem('agent101_token')
+    localStorage.removeItem('contentgenie_token')
   }
 }
 

@@ -107,7 +107,7 @@ export default function App() {
     return (
       <div className="app app-loading-screen">
         <div className="loading-spinner" />
-        <p>Initializing AGENT-101 Studio…</p>
+        <p>Initializing ContentGenie Studio…</p>
       </div>
     )
   }

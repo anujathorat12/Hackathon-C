@@ -731,7 +731,7 @@ async def get_deliverable_preview(topic_id: str):
                         if not txt:
                             continue
                         if is_cover:
-                            if "AGENT-101" in txt and ("SYSTEM DELIVERABLE" in txt or len(txt) < 40):
+                            if "ContentGenie" in txt and ("SYSTEM DELIVERABLE" in txt or len(txt) < 40):
                                 s_data["pill_badge"] = txt
                             elif not s_data["title"] and ("Outline" in txt or "Presentation" in txt or len(txt) < 100):
                                 s_data["title"] = txt
@@ -744,7 +744,7 @@ async def get_deliverable_preview(topic_id: str):
                         else:
                             if ("SLIDE " in txt and len(txt) <= 10) or txt == "SLIDE":
                                 s_data["footer_right"] = txt
-                            elif "AGENT-101" in txt and len(txt) < 80:
+                            elif "ContentGenie" in txt and len(txt) < 80:
                                 s_data["footer_left"] = txt
                             elif not s_data["title"] and len(txt) < 80 and "\n" not in txt:
                                 s_data["title"] = txt

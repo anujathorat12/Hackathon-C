@@ -68,13 +68,13 @@ export default function SlideDeckPreview({
         isCover: s.is_cover ?? idx === 0,
         title: s.title || (idx === 0 ? title : `Slide ${idx + 1}`),
         subtitle: s.subtitle || '',
-        pillBadge: s.pill_badge || 'SYSTEM DELIVERABLE • AGENT-101',
+        pillBadge: s.pill_badge || 'SYSTEM DELIVERABLE • ContentGenie',
         metadata: s.metadata || '',
         cards: s.cards || [],
         statCards: s.stat_cards || [],
         table: s.table || null,
         fact: s.fact || null,
-        footerLeft: s.footer_left || 'AGENT-101 • Multi-Agent Autonomous Content Synthesis System',
+        footerLeft: s.footer_left || 'ContentGenie • Multi-Agent Autonomous Content Synthesis System',
         footerRight: s.footer_right || `SLIDE ${idx + 1}`,
       }))
     }
@@ -118,7 +118,7 @@ export default function SlideDeckPreview({
           <div className="slide-cover-body">
             <div className="slide-cover-badge">
               <span className="badge-dot" />
-              {slide.pillBadge || 'SYSTEM DELIVERABLE • AGENT-101'}
+              {slide.pillBadge || 'SYSTEM DELIVERABLE • ContentGenie'}
             </div>
             <h1 className="slide-cover-title">{slide.title || title}</h1>
             <p className="slide-cover-sub">
@@ -126,7 +126,7 @@ export default function SlideDeckPreview({
                 'Autonomous Multi-Agent AI Content Generation & Synthesis System\nStrict Topic Isolation • Native Binary Architecture • WCAG 2.2 Level AA'}
             </p>
             <div className="slide-cover-meta">
-              <span>{slide.metadata || `VERSION 1.0   |   AUTHOR: AGENT-101   |   16:9 WIDESCREEN`}</span>
+              <span>{slide.metadata || `VERSION 1.0   |   AUTHOR: ContentGenie   |   16:9 WIDESCREEN`}</span>
             </div>
           </div>
         </div>
@@ -204,7 +204,7 @@ export default function SlideDeckPreview({
           <div className="slide-footer-line" />
           <div className="slide-footer-info">
             <span className="footer-left">
-              {slide.footerLeft || 'AGENT-101 • Multi-Agent Autonomous Content Synthesis System'}
+              {slide.footerLeft || 'ContentGenie • Multi-Agent Autonomous Content Synthesis System'}
             </span>
             <span className="footer-right">
               {slide.footerRight || `SLIDE ${idx !== undefined ? idx + 1 : slide.slideNumber}`}

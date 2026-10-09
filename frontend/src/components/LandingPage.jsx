@@ -137,7 +137,7 @@ export default function LandingPage({ onOpenAuth }) {
       <header className="landing-nav-wrapper">
         <nav className="landing-nav-island">
           {/* Brand */}
-          <button className="landing-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="AGENT-101 Home">
+          <button className="landing-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="ContentGenie Home">
             <div className="brand-logo-icon">
               <svg viewBox="0 0 32 32" width="22" height="22">
                 <defs>
@@ -147,12 +147,12 @@ export default function LandingPage({ onOpenAuth }) {
                   </linearGradient>
                 </defs>
                 <path d="M16 2 28.1 9v14L16 30 3.9 23V9z" fill="url(#lndg)" />
-                <path d="M11 21.5 16 10l5 11.5M12.8 17.5h6.4" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M20.6 11.6a6.2 6.2 0 1 0 0 8.8" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
               </svg>
             </div>
             <div className="brand-wordmark">
-              <span className="brand-primary">AGENT</span>
-              <span className="brand-accent">101</span>
+              <span className="brand-primary">Content</span>
+              <span className="brand-accent">Genie</span>
             </div>
           </button>
 
@@ -336,7 +336,7 @@ export default function LandingPage({ onOpenAuth }) {
       <footer className="landing-footer">
         <div className="footer-top">
           <div className="landing-brand">
-            <div className="brand-name">AGENT<span>-101</span></div>
+            <div className="brand-name">Content<span>Genie</span></div>
             <div className="brand-sub">Agentic Content Studio</div>
           </div>
           <div className="footer-links">
@@ -347,7 +347,7 @@ export default function LandingPage({ onOpenAuth }) {
           </div>
         </div>
         <div className="footer-bottom">
-          <span>© 2025 AGENT-101 Studio. All rights reserved. Enterprise Autonomous Content Platform.</span>
+          <span>© 2025 ContentGenie Studio. All rights reserved. Enterprise Autonomous Content Platform.</span>
         </div>
       </footer>
     </div>
