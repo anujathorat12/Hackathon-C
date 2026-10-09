@@ -7,9 +7,24 @@ services:
     plan: free
     healthCheckPath: /api/health
     envVars:
-      - key: GROQ_API_KEY
+      - key: MONGODB_URI          # MongoDB Atlas connection string (mongodb+srv://...)
         sync: false
-      - key: MONGODB_URI
+      # LLM providers, tried in this order; providers without a key are skipped.
+      - key: LLM_PROVIDER_CHAIN
+        value: groq,openrouter,mistral,gemini
+      - key: GROQ_API_KEY         # primary
         sync: false
-      - key: LLM_MODEL
+      - key: GROQ_MODEL
         value: openai/gpt-oss-120b
+      - key: OPENROUTER_API_KEY   # backup 1 (optional)
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: meta-llama/llama-3.3-70b-instruct
+      - key: MISTRAL_API_KEY      # backup 2 (optional)
+        sync: false
+      - key: MISTRAL_MODEL
+        value: mistral-small-latest
+      - key: GEMINI_API_KEY       # backup 3 (optional)
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
