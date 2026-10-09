@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { api } from '../api'
 import Icon from './Icon'
 import { FORMATS, formatBytes, formatTime } from '../constants'
+import FormatPreview from './FormatPreview'
 import SlideDeckPreview from './SlideDeckPreview'
 import WordDocumentPreview from './WordDocumentPreview'
 
 export default function DeliverableVault({ deliverable: d, versions = [], topicId, refinedContent = '', title = 'Deliverable' }) {
   const [showPreview, setShowPreview] = useState(false)
+  const [view, setView] = useState('exact')
   const fmt = FORMATS[d.format] || FORMATS.DOCX
   const report = d.accessibility_report || {}
   const checks = [
@@ -15,6 +19,37 @@ export default function DeliverableVault({ deliverable: d, versions = [], topicI
     { label: 'Table headers', value: report.table_headers_tagged ? 'Tagged' : 'Missing', ok: !!report.table_headers_tagged },
   ]
   const unitLabel = d.format === 'PPT' ? 'slides' : 'pages'
+
+  const outlineHtml = useMemo(() => DOMPurify.sanitize(marked.parse(refinedContent || '')), [refinedContent])
+
+  const deliverablePreview = useMemo(() => {
+    const isPdf = d.format === 'PDF' || !!d.pdf_url
+    const renderer = isPdf
+      ? 'pdf'
+      : d.format === 'PPT'
+        ? 'pptx'
+        : d.format === 'DOCX'
+          ? 'docx'
+          : 'markdown'
+    const exportUrl = `${d.download_url}${d.download_url.includes('?') ? '&' : '?'}inline=true`
+    return {
+      format: d.format,
+      renderer,
+      file_name: d.file_name,
+      file_url: exportUrl,
+      pdf_url: d.pdf_url || (isPdf ? exportUrl : null),
+      page_or_slide_count: d.page_or_slide_count,
+      notes_count: d.notes_count,
+      content_markdown: refinedContent,
+    }
+  }, [d, refinedContent])
+
+  const views = [
+    { key: 'exact', label: 'Exact file', icon: 'file', hint: `Inspect the real compiled ${fmt.ext} file` },
+    ...(d.format === 'PPT' ? [{ key: 'interactive', label: 'Slide deck', icon: 'layers', hint: 'Browse slide cards' }] : []),
+    ...(d.format === 'DOCX' ? [{ key: 'interactive', label: 'Reading view', icon: 'eye', hint: 'Quick formatted reading layout' }] : []),
+    { key: 'outline', label: 'Raw content', icon: 'type', hint: 'Markdown outline' },
+  ]
 
   return (
     <section className="card vault" aria-labelledby="vault-h">
@@ -104,11 +139,36 @@ export default function DeliverableVault({ deliverable: d, versions = [], topicI
       {showPreview && (
         <div className="vault-preview-expanded">
           <div className="vault-preview-header">
-            <h3><Icon name="eye" size={16} /> Compiled Deliverable Preview ({fmt.label})</h3>
-            <span className="hint">Interactive presentation rendered from compiled deliverable</span>
+            <div>
+              <h3><Icon name="eye" size={16} /> Compiled Deliverable Preview ({fmt.label})</h3>
+              <span className="hint">Showing actual {d.file_name} compiled by the system</span>
+            </div>
+            {views.length > 1 && (
+              <div className="view-switch" role="tablist" aria-label="Deliverable view modes">
+                {views.map((v) => (
+                  <button
+                    key={v.key}
+                    role="tab"
+                    aria-selected={view === v.key}
+                    className={view === v.key ? 'on' : ''}
+                    onClick={() => setView(v.key)}
+                    title={v.hint}
+                  >
+                    <Icon name={v.icon} size={13} /> {v.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="doc-frame">
-            {d.format === 'PPT' ? (
+          <div className={`doc-frame ${view === 'exact' ? `fp-frame fp-${d.format}` : ''}`}>
+            {view === 'exact' ? (
+              <FormatPreview
+                preview={deliverablePreview}
+                format={d.format}
+                onRetry={() => {}}
+                onFallback={() => setView('interactive')}
+              />
+            ) : view === 'interactive' && d.format === 'PPT' ? (
               <SlideDeckPreview
                 markdown={refinedContent}
                 title={title}
@@ -116,16 +176,14 @@ export default function DeliverableVault({ deliverable: d, versions = [], topicI
                 deliverable={d}
                 status="COMPLETED"
               />
-            ) : d.format === 'DOCX' ? (
+            ) : view === 'interactive' && d.format === 'DOCX' ? (
               <WordDocumentPreview
                 markdown={refinedContent}
                 title={title}
                 deliverable={d}
               />
             ) : (
-              <div className="doc" style={{ padding: 24 }}>
-                <pre style={{ whiteSpace: 'pre-wrap' }}>{refinedContent}</pre>
-              </div>
+              <article className="doc" dangerouslySetInnerHTML={{ __html: outlineHtml }} />
             )}
           </div>
         </div>

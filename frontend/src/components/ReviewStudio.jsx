@@ -55,7 +55,7 @@ export default function ReviewStudio({ topicId, format, content, metrics = {}, s
   const delivered = status === 'COMPLETED'
   const edited = draft !== content
   // The preview reflects the markdown it was built from; edits after that make it stale.
-  const stale = !!preview && preview.content_markdown !== draft
+  const stale = !delivered && !!preview && preview.content_markdown !== draft
 
   const outlineHtml = useMemo(() => DOMPurify.sanitize(marked.parse(draft || '')), [draft])
   const words = useMemo(() => (draft.trim() ? draft.trim().split(/\s+/).length : 0), [draft])
@@ -73,13 +73,39 @@ export default function ReviewStudio({ topicId, format, content, metrics = {}, s
     }
   }, [topicId])
 
+  const deliverablePreview = useMemo(() => {
+    if (!deliverable) return null
+    const isPdf = deliverable.format === 'PDF' || !!deliverable.pdf_url
+    const renderer = isPdf
+      ? 'pdf'
+      : deliverable.format === 'PPT'
+        ? 'pptx'
+        : deliverable.format === 'DOCX'
+          ? 'docx'
+          : 'markdown'
+    const exportUrl = `${deliverable.download_url}${deliverable.download_url.includes('?') ? '&' : '?'}inline=true`
+    return {
+      format: deliverable.format || format,
+      renderer,
+      file_name: deliverable.file_name,
+      file_url: exportUrl,
+      pdf_url: deliverable.pdf_url || (isPdf ? exportUrl : null),
+      page_or_slide_count: deliverable.page_or_slide_count,
+      notes_count: deliverable.notes_count,
+      content_markdown: content,
+      built_at: deliverable.compiled_at,
+    }
+  }, [deliverable, format, content])
+
+  const activePreview = (delivered && deliverablePreview && !edited) ? deliverablePreview : preview
+
   // Build the real-format preview as soon as the review opens (and when the approved content changes),
   // but not again for markdown the current preview already shows.
   const builtFor = preview?.content_markdown
   useEffect(() => {
-    if (builtFor !== content) buildPreview(content)
+    if (!delivered && builtFor !== content) buildPreview(content)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildPreview, content])
+  }, [buildPreview, content, delivered])
 
   const refresh = () => {
     setTab('preview')
@@ -104,10 +130,11 @@ export default function ReviewStudio({ topicId, format, content, metrics = {}, s
   }
 
   const unit = format === 'PPT' ? 'slides' : format === 'MD' ? 'file' : 'pages'
+  const displayPreview = activePreview || preview
   const stats = [
     { label: 'Reading grade', value: metrics.reading_grade_level || '—', note: metrics.reading_grade_level ? (metrics.initial_reading_grade_level ? `target 8–10 · draft was ${metrics.initial_reading_grade_level}` : 'target 8–10') : 'measured for English only' },
     { label: 'Words', value: words, note: `${sections} sections` },
-    { label: format === 'PPT' ? 'Slides' : 'Pages', value: preview && format !== 'MD' ? preview.page_or_slide_count : '—', note: format === 'PPT' ? 'in the deck' : 'approximate' },
+    { label: format === 'PPT' ? 'Slides' : 'Pages', value: displayPreview && format !== 'MD' ? displayPreview.page_or_slide_count : '—', note: format === 'PPT' ? 'in the deck' : 'approximate' },
     { label: 'Citations', value: metrics.citations_count ?? '—', note: 'distinct sources cited in text' },
   ]
 
@@ -180,7 +207,7 @@ export default function ReviewStudio({ topicId, format, content, metrics = {}, s
           ) : view === 'outline' ? (
             <article className="doc" dangerouslySetInnerHTML={{ __html: outlineHtml }} />
           ) : (
-            <FormatPreview preview={preview} loading={previewing} error={previewError} format={format} onRetry={refresh} />
+            <FormatPreview preview={activePreview} loading={previewing} error={previewError} format={format} onRetry={refresh} onFallback={() => setView('interactive')} />
           )
         ) : (
           <textarea className="doc-editor" value={draft} onChange={(e) => setDraft(e.target.value)}

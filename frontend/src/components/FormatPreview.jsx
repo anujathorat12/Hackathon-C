@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { api } from '../api'
+import { api, getToken } from '../api'
 import Icon from './Icon'
 import { FORMATS } from '../constants'
 
 // Renders the compiled preview file in its real format: slides, Word pages, the PDF itself, or markdown.
-export default function FormatPreview({ preview, loading, error, format, onRetry }) {
+export default function FormatPreview({ preview, loading, error, format, onRetry, onFallback }) {
   const fmt = FORMATS[format] || FORMATS.DOCX
 
   if (loading) {
@@ -47,9 +47,9 @@ export default function FormatPreview({ preview, loading, error, format, onRetry
     case 'pdf':
       return <>{caption}<iframe className="fp-pdf" title={`${fmt.label} preview`} src={api.fileUrl(preview.pdf_url || preview.file_url)} /></>
     case 'pptx':
-      return <div className="fp-scroll">{caption}<PptxView url={api.fileUrl(preview.file_url)} /></div>
+      return <div className="fp-scroll">{caption}<PptxView url={api.fileUrl(preview.file_url)} onFallback={onFallback} /></div>
     case 'docx':
-      return <div className="fp-scroll">{caption}<DocxView url={api.fileUrl(preview.file_url)} /></div>
+      return <div className="fp-scroll">{caption}<DocxView url={api.fileUrl(preview.file_url)} onFallback={onFallback} /></div>
     default:
       return <>{caption}<MarkdownView markdown={preview.content_markdown} /></>
   }
@@ -60,7 +60,10 @@ function useFileBuffer(url) {
   useEffect(() => {
     let cancelled = false
     setState({ buffer: null, error: null })
-    fetch(url, { cache: 'no-store' })
+    const headers = {}
+    const token = getToken?.()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    fetch(url, { cache: 'no-store', headers })
       .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status} ${r.statusText}`))))
       .then((buffer) => !cancelled && setState({ buffer, error: null }))
       .catch((e) => !cancelled && setState({ buffer: null, error: e.message }))
@@ -69,7 +72,7 @@ function useFileBuffer(url) {
   return state
 }
 
-function PptxView({ url }) {
+function PptxView({ url, onFallback }) {
   const hostRef = useRef(null)
   const { buffer, error } = useFileBuffer(url)
   const [renderError, setRenderError] = useState(null)
@@ -83,7 +86,8 @@ function PptxView({ url }) {
     import('pptx-preview')
       .then(({ init }) => {
         if (cancelled) return
-        const width = Math.min(host.clientWidth - 32, 1100)
+        const hostWidth = host.clientWidth || 960
+        const width = Math.max(480, Math.min(hostWidth - 32, 1100))
         previewer = init(host, { width, height: Math.round(width * 9 / 16), mode: 'list' })
         return previewer.preview(buffer)
       })
@@ -94,11 +98,24 @@ function PptxView({ url }) {
     }
   }, [buffer])
 
-  if (error || renderError) return <div className="fp-state fp-error"><Icon name="alert" /> <small>{error || renderError}</small></div>
+  if (error || renderError) {
+    return (
+      <div className="fp-state fp-error">
+        <Icon name="alert" size={22} />
+        <b>Couldn't render PowerPoint binary</b>
+        <small>{error || renderError}</small>
+        {onFallback && (
+          <button className="btn btn-secondary btn-sm" onClick={onFallback} style={{ marginTop: 8 }}>
+            <Icon name="layers" size={14} /> Switch to interactive slide view
+          </button>
+        )}
+      </div>
+    )
+  }
   return <div className="fp-pptx" ref={hostRef}>{!buffer && <div className="fp-state"><span className="spinner" /></div>}</div>
 }
 
-function DocxView({ url }) {
+function DocxView({ url, onFallback }) {
   const hostRef = useRef(null)
   const { buffer, error } = useFileBuffer(url)
   const [renderError, setRenderError] = useState(null)
@@ -116,7 +133,20 @@ function DocxView({ url }) {
     return () => { cancelled = true }
   }, [buffer])
 
-  if (error || renderError) return <div className="fp-state fp-error"><Icon name="alert" /> <small>{error || renderError}</small></div>
+  if (error || renderError) {
+    return (
+      <div className="fp-state fp-error">
+        <Icon name="alert" size={22} />
+        <b>Couldn't render Word document binary</b>
+        <small>{error || renderError}</small>
+        {onFallback && (
+          <button className="btn btn-secondary btn-sm" onClick={onFallback} style={{ marginTop: 8 }}>
+            <Icon name="eye" size={14} /> Switch to reading view
+          </button>
+        )}
+      </div>
+    )
+  }
   return <div className="fp-docx" ref={hostRef}>{!buffer && <div className="fp-state"><span className="spinner" /></div>}</div>
 }
 

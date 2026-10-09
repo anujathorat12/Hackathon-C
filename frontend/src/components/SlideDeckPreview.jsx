@@ -22,8 +22,7 @@ export default function SlideDeckPreview({
   useEffect(() => {
     let cancelled = false
     if (topicId && deliverable?.file_name) {
-      fetch(`/api/v1/workspaces/${topicId}/deliverable/preview`)
-        .then((r) => (r.ok ? r.json() : null))
+      api.deliverablePreview(topicId)
         .then((data) => {
           if (!cancelled && data?.success) {
             if (data.slides?.length) setCompiledSlides(data.slides)

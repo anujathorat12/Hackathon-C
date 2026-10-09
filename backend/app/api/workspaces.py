@@ -600,13 +600,18 @@ async def build_preview(topic_id: str, body: ApproveRequest):
 async def preview_file(topic_id: str, file: str):
     target = OUTPUTS_DIR / topic_id / "preview" / os.path.basename(file)
     if not target.is_file():
-        raise HTTPException(status_code=404, detail="Preview not found. Build the preview again.")
+        alt = OUTPUTS_DIR / topic_id / os.path.basename(file)
+        if alt.is_file():
+            target = alt
+        else:
+            raise HTTPException(status_code=404, detail="Preview not found. Build the preview again.")
     return FileResponse(
         target,
         media_type=FORMAT_MEDIA_TYPES.get(target.suffix.lower(), "application/octet-stream"),
         content_disposition_type="inline",
         headers={"Cache-Control": "no-store"},
     )
+
 
 
 # ─── Human-in-the-loop approval → final document ────────────────────────────────
@@ -625,15 +630,21 @@ async def approve_and_compile(topic_id: str, body: ApproveRequest):
         raise
 
     page_count = _slide_count(result)
+    compiled = Path(result.file_path)
+    pdf = compiled if result.format == "PDF" else None
+    if result.format in ("PPT", "DOCX"):
+        pdf = await asyncio.to_thread(_convert_to_pdf, compiled)
 
     deliverable = {
         "file_name": result.file_name,
         "format": result.format,
         "file_size_bytes": result.file_size_bytes,
         "page_or_slide_count": page_count,
+        "notes_count": _notes_count(result),
         "wcag_compliant": result.wcag_compliant,
         "accessibility_report": result.accessibility_report.model_dump() if result.accessibility_report else None,
         "download_url": f"/api/v1/workspaces/{topic_id}/export?file={result.file_name}",
+        "pdf_url": f"/api/v1/workspaces/{topic_id}/export?file={pdf.name}&inline=true" if pdf else None,
         "compiled_at": _now(),
         "version": version,
         "change_note": _change_note(run, previous, content),
@@ -810,7 +821,8 @@ async def get_deliverable_preview(topic_id: str):
 
 
 @router.get("/{topic_id}/export")
-async def export_document(topic_id: str, file: Optional[str] = None):
+@router.head("/{topic_id}/export")
+async def export_document(topic_id: str, file: Optional[str] = None, inline: bool = False):
     """Serve this topic's compiled deliverable (latest one unless a file name is given)."""
     topic_dir = OUTPUTS_DIR / topic_id
     if topic_dir.is_dir():
@@ -821,9 +833,17 @@ async def export_document(topic_id: str, file: Optional[str] = None):
             files = sorted((f for f in topic_dir.iterdir() if f.is_file()), key=lambda f: f.stat().st_mtime)
         if files:
             target = files[-1]
+            media_type = FORMAT_MEDIA_TYPES.get(target.suffix.lower(), "application/octet-stream")
+            if inline:
+                return FileResponse(
+                    target,
+                    media_type=media_type,
+                    content_disposition_type="inline",
+                    headers={"Cache-Control": "no-store"},
+                )
             return FileResponse(
                 target,
                 filename=target.name,
-                media_type=FORMAT_MEDIA_TYPES.get(target.suffix.lower(), "application/octet-stream"),
+                media_type=media_type,
             )
     raise HTTPException(status_code=404, detail="No compiled deliverable found for this workspace.")

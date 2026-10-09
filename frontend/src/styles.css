@@ -537,9 +537,9 @@ code { font-family: var(--mono); font-size: 0.88em; background: rgba(255,255,255
 .fp-pptx .pptx-preview-wrapper { background: transparent !important; height: auto !important; overflow: visible !important; }
 .fp-pptx .pptx-preview-slide-wrapper { margin: 0 auto 18px !important; box-shadow: 0 8px 28px rgba(15, 23, 42, .22); border-radius: 4px; }
 .fp-caption { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; padding: 8px 16px; font-size: 12.5px; color: #475569; background: rgba(233, 237, 243, .92); backdrop-filter: blur(6px); border-bottom: 1px solid #d5dbe5; }
-.fp-docx { }
-.fp-docx .fp-docx-page-wrapper { background: #e9edf3; padding: 24px; }
-.fp-docx .fp-docx-page-wrapper > section.fp-docx-page { box-shadow: 0 6px 24px rgba(15, 23, 42, .18); margin-bottom: 24px; }
+.fp-docx { color: #1e293b; }
+.fp-docx .fp-docx-page-wrapper { background: #e9edf3; padding: 24px; display: flex; flex-direction: column; align-items: center; }
+.fp-docx .fp-docx-page-wrapper > section.fp-docx-page { box-shadow: 0 6px 24px rgba(15, 23, 42, .18); margin-bottom: 24px; background: #ffffff; color: #1e293b; border-radius: 2px; }
 .banner-info { background: rgba(99,102,241,.1); border: 1px solid rgba(129,140,248,.35); color: #c7d2fe; margin-bottom: 14px; }
 .banner-info .btn { margin-left: auto; }
 .btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 10px; }
