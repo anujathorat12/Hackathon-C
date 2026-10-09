@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Icon from './Icon'
 
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '[::1]']
@@ -39,7 +40,8 @@ export default function ShareButton() {
       <button className="btn btn-ghost share-btn" onClick={() => setOpen(true)}>
         <Icon name="upload" size={15} /> Share
       </button>
-      {open && (
+      {/* Portal to <body>: the header's backdrop-filter would otherwise trap this fixed overlay inside it. */}
+      {open && createPortal(
         <div className="modal-scrim" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}>
           <div className="modal share-modal" role="dialog" aria-modal="true" aria-labelledby="share-title">
             <div className="modal-head">
@@ -62,7 +64,8 @@ export default function ShareButton() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

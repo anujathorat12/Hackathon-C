@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Icon from './Icon'
+import ShareButton from './ShareButton'
 
 export default function LandingPage({ onOpenAuth }) {
   const [activeStep, setActiveStep] = useState(0)
@@ -182,6 +183,7 @@ export default function LandingPage({ onOpenAuth }) {
 
           {/* Actions */}
           <div className="landing-nav-actions">
+            <ShareButton />
             <button className="nav-login-link" onClick={() => onOpenAuth('login')}>
               Sign In
             </button>
